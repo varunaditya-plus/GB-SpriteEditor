@@ -233,7 +233,7 @@ export default function ColorPicker({ currentColor, onColorChange }) {
   const currentHex = toHex(rgb15.r, rgb15.g, rgb15.b)
 
   return (
-    <div className="w-64 bg-neutral-800 border-l border-neutral-700 p-4 flex flex-col gap-4 h-full overflow-y-auto">      
+    <>   
       {/* Color Preview */}
       <div className="flex items-center gap-2">
         <div
@@ -284,7 +284,7 @@ export default function ColorPicker({ currentColor, onColorChange }) {
           />
         </div>
       </div>
-    </div>
+    </>
   )
 }
 
