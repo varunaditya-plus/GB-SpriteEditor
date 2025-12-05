@@ -1,14 +1,14 @@
 // Centralized tool handler - Routes tool actions to appropriate utilities
-import { handlePencilDown, handlePencilMove } from './pencil'
-import { handleEraserDown, handleEraserMove } from './eraser'
-import { handleFillDown } from './fill'
-import { handleLineDown, handleLineMove, handleLineUp } from './line'
-import { handleRectangleDown, handleRectangleMove, handleRectangleUp } from './rectangle'
-import { handleCircleDown, handleCircleMove, handleCircleUp } from './circle'
-import { handleColorPickerDown } from './colorPicker'
-import { handleRectangleSelectionDown, handleRectangleSelectionMove, handleRectangleSelectionUp } from './rectangleSelection'
-import { handleLassoSelectionDown, handleLassoSelectionMove, handleLassoSelectionUp } from './lassoSelection'
-import { moveSelection, updateSelectionIndices, isInSelection } from './moveSelection'
+import { handlePencilDown, handlePencilMove } from './tools/pencil'
+import { handleEraserDown, handleEraserMove } from './tools/eraser'
+import { handleFillDown } from './tools/fill'
+import { handleLineDown, handleLineMove, handleLineUp } from './tools/line'
+import { handleRectangleDown, handleRectangleMove, handleRectangleUp } from './tools/rectangle'
+import { handleCircleDown, handleCircleMove, handleCircleUp } from './tools/circle'
+import { handleColorPickerDown } from './tools/colorPicker'
+import { handleRectangleSelectionDown, handleRectangleSelectionMove, handleRectangleSelectionUp } from './tools/rectangleSelection'
+import { handleLassoSelectionDown, handleLassoSelectionMove, handleLassoSelectionUp } from './tools/lassoSelection'
+import { moveSelection, updateSelectionIndices, isInSelection } from './tools/moveSelection'
 
 export const handleToolMouseDown = ({
   selectedTool,
