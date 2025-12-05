@@ -1,4 +1,5 @@
 import ColorPicker from './ColorPicker'
+import Layers from './Layers'
 
 export default function Panels({
   selectedTool,
@@ -9,7 +10,14 @@ export default function Panels({
   brushOpacity,
   onOpacityChange,
   strokeWidth,
-  onStrokeWidthChange
+  onStrokeWidthChange,
+  layers,
+  activeLayerIndex,
+  onLayerSelect,
+  onLayerAdd,
+  onLayerDelete,
+  onLayerToggleVisibility,
+  onLayerReorder
 }) {
   const showBrushSettings = selectedTool === 'pencil' || selectedTool === 'eraser'
   const showStrokeSettings = selectedTool === 'line' || selectedTool === 'rectangle' || selectedTool === 'circle'
@@ -89,6 +97,16 @@ export default function Panels({
           </div>
         </div>
       )}
+
+      <Layers
+        layers={layers}
+        activeLayerIndex={activeLayerIndex}
+        onLayerSelect={onLayerSelect}
+        onLayerAdd={onLayerAdd}
+        onLayerDelete={onLayerDelete}
+        onLayerToggleVisibility={onLayerToggleVisibility}
+        onLayerReorder={onLayerReorder}
+      />
     </div>
   )
 }

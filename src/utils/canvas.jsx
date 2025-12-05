@@ -8,7 +8,7 @@ export const initializeCanvas = (canvas, canvasSize) => {
   canvas.style.height = `${canvasSize}px`
 }
 
-export const drawCanvas = (canvas, canvasSize, gridSize, cellSize, pixels, selection) => {
+export const drawCanvas = (canvas, canvasSize, gridSize, cellSize, layers, selection) => {
   if (!canvas) return
 
   const ctx = canvas.getContext('2d')
@@ -36,7 +36,19 @@ export const drawCanvas = (canvas, canvasSize, gridSize, cellSize, pixels, selec
     ctx.stroke()
   }
 
-  pixels.forEach((color, index) => {
+  const compositePixels = Array(gridSize * gridSize).fill(null)
+  
+  layers.forEach(layer => {
+    if (layer.visible) {
+      layer.pixels.forEach((color, index) => {
+        if (color) {
+          compositePixels[index] = color
+        }
+      })
+    }
+  })
+
+  compositePixels.forEach((color, index) => {
     if (color) {
       const row = Math.floor(index / gridSize)
       const col = index % gridSize

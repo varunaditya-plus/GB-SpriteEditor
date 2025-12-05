@@ -233,7 +233,8 @@ export default function ColorPicker({ currentColor, onColorChange }) {
   const currentHex = toHex(rgb15.r, rgb15.g, rgb15.b)
 
   return (
-    <>   
+    <>
+      <div className="text-sm font-medium text-neutral-300">Color Picker</div>
       {/* Color Preview */}
       <div className="flex items-center gap-2">
         <div

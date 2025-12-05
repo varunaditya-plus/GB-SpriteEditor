@@ -13,9 +13,11 @@ export default function App() {
   const [brushThickness, setBrushThickness] = useState(1)
   const [brushOpacity, setBrushOpacity] = useState(10)
   const [strokeWidth, setStrokeWidth] = useState(1)
-  const [pixels, setPixels] = useState(() => 
-    Array(GRID_SIZE * GRID_SIZE).fill(null)
-  )
+  const [nextLayerId, setNextLayerId] = useState(1)
+  const [layers, setLayers] = useState(() => [
+    { id: 0, name: 'Layer 1', pixels: Array(GRID_SIZE * GRID_SIZE).fill(null), visible: true }
+  ])
+  const [activeLayerIndex, setActiveLayerIndex] = useState(0)
   const [isDrawing, setIsDrawing] = useState(false)
   const [startPoint, setStartPoint] = useState(null)
   const [originalPixels, setOriginalPixels] = useState(null)
@@ -27,7 +29,7 @@ export default function App() {
   const [originalSelection, setOriginalSelection] = useState(null)
   const [hasMoved, setHasMoved] = useState(false)
   const [isHoveringSelection, setIsHoveringSelection] = useState(false)
-  const initialHistoryState = Array(GRID_SIZE * GRID_SIZE).fill(null)
+  const initialHistoryState = [{ id: 0, name: 'Layer 1', pixels: Array(GRID_SIZE * GRID_SIZE).fill(null), visible: true }]
   const historyState = createHistory(initialHistoryState)
   const [history, setHistory] = useState(historyState.history)
   const [historyIndex, setHistoryIndex] = useState(historyState.historyIndex)
@@ -35,6 +37,8 @@ export default function App() {
   const fillJustUsedRef = useRef(false)
   const canvasRef = useRef(null)
   const canvasSize = GRID_SIZE * CELL_SIZE
+
+  const pixels = layers[activeLayerIndex]?.pixels || []
 
   useEffect(() => {
     if (selectedTool !== 'rectangleSelection' && selectedTool !== 'lassoSelection') {
@@ -52,8 +56,8 @@ export default function App() {
   const renderCanvas = useCallback(() => {
     const canvas = canvasRef.current
     if (!canvas) return
-    drawCanvas(canvas, canvasSize, GRID_SIZE, CELL_SIZE, pixels, selection)
-  }, [pixels, selection, canvasSize])
+    drawCanvas(canvas, canvasSize, GRID_SIZE, CELL_SIZE, layers, selection)
+  }, [layers, selection, canvasSize])
 
   useEffect(() => {
     renderCanvas()
@@ -65,17 +69,22 @@ export default function App() {
   }
 
   const setPixel = useCallback((index, color) => {
-    if (index === null || index < 0 || index >= pixels.length) return
+    if (index === null || index < 0 || index >= GRID_SIZE * GRID_SIZE) return
     
-    setPixels(prev => {
-      const newPixels = [...prev]
-      newPixels[index] = color
-      return newPixels
+    setLayers(prev => {
+      const newLayers = [...prev]
+      const newLayerPixels = [...newLayers[activeLayerIndex].pixels]
+      newLayerPixels[index] = color
+      newLayers[activeLayerIndex] = {
+        ...newLayers[activeLayerIndex],
+        pixels: newLayerPixels
+      }
+      return newLayers
     })
-  }, [pixels.length])
+  }, [activeLayerIndex])
 
-  const handleSaveToHistory = useCallback((newPixels) => {
-    const result = saveToHistory(history, historyIndex, newPixels, isUndoRedoRef)
+  const handleSaveToHistory = useCallback((newLayers) => {
+    const result = saveToHistory(history, historyIndex, newLayers, isUndoRedoRef)
     if (result) {
       setHistory(result.history)
       setHistoryIndex(result.historyIndex)
@@ -83,18 +92,88 @@ export default function App() {
   }, [historyIndex, history])
 
   const handleUndo = useCallback(() => {
-    const newIndex = undo(history, historyIndex, setPixels, isUndoRedoRef)
+    const newIndex = undo(history, historyIndex, setLayers, isUndoRedoRef)
     if (newIndex !== historyIndex) {
       setHistoryIndex(newIndex)
     }
   }, [historyIndex, history])
 
   const handleRedo = useCallback(() => {
-    const newIndex = redo(history, historyIndex, setPixels, isUndoRedoRef)
+    const newIndex = redo(history, historyIndex, setLayers, isUndoRedoRef)
     if (newIndex !== historyIndex) {
       setHistoryIndex(newIndex)
     }
   }, [historyIndex, history])
+
+  const addLayer = useCallback(() => {
+    setLayers(prev => {
+      const newLayer = {
+        id: nextLayerId,
+        name: `Layer ${prev.length + 1}`,
+        pixels: Array(GRID_SIZE * GRID_SIZE).fill(null),
+        visible: true
+      }
+      setNextLayerId(prev => prev + 1)
+      return [...prev, newLayer]
+    })
+    setActiveLayerIndex(prev => prev + 1)
+  }, [nextLayerId])
+
+  const deleteLayer = useCallback((index) => {
+    if (layers.length <= 1) return
+    
+    setLayers(prev => {
+      const newLayers = prev.filter((_, i) => i !== index)
+      return newLayers
+    })
+    
+    if (activeLayerIndex >= index && activeLayerIndex > 0) {
+      setActiveLayerIndex(prev => Math.max(0, prev - 1))
+    } else if (activeLayerIndex >= layers.length - 1) {
+      setActiveLayerIndex(layers.length - 2)
+    }
+  }, [layers.length, activeLayerIndex])
+
+  const selectLayer = useCallback((index) => {
+    if (index >= 0 && index < layers.length) {
+      setActiveLayerIndex(index)
+    }
+  }, [layers.length])
+
+  const toggleLayerVisibility = useCallback((index) => {
+    setLayers(prev => {
+      const newLayers = [...prev]
+      newLayers[index] = {
+        ...newLayers[index],
+        visible: !newLayers[index].visible
+      }
+      return newLayers
+    })
+  }, [])
+
+  const reorderLayer = useCallback((fromIndex, toIndex) => {
+    if (fromIndex === toIndex) return
+    if (toIndex < 0 || toIndex >= layers.length) return
+    
+    let newActiveIndex = activeLayerIndex
+    
+    if (activeLayerIndex === fromIndex) {
+      newActiveIndex = toIndex
+    } else if (fromIndex < activeLayerIndex && toIndex >= activeLayerIndex) {
+      newActiveIndex = activeLayerIndex - 1
+    } else if (fromIndex > activeLayerIndex && toIndex <= activeLayerIndex) {
+      newActiveIndex = activeLayerIndex + 1
+    }
+    
+    setLayers(prev => {
+      const newLayers = [...prev]
+      const [movedLayer] = newLayers.splice(fromIndex, 1)
+      newLayers.splice(toIndex, 0, movedLayer)
+      return newLayers
+    })
+    
+    setActiveLayerIndex(newActiveIndex)
+  }, [layers.length, activeLayerIndex])
 
   const handleMouseDown = (e) => {
     const isRightButton = e.button === 2
@@ -102,6 +181,10 @@ export default function App() {
     setIsDrawing(true)
     setHasMoved(false)
     const index = getPixelIndex(e.clientX, e.clientY)
+    
+    if (selectedTool === 'line' || selectedTool === 'rectangle' || selectedTool === 'circle') {
+      setOriginalPixels([...pixels])
+    }
     
     handleToolMouseDown({
       selectedTool,
@@ -121,7 +204,16 @@ export default function App() {
       brushOpacity,
       strokeWidth,
       setPixel,
-      setPixels,
+      setPixels: (newPixels) => {
+        setLayers(prev => {
+          const newLayers = [...prev]
+          newLayers[activeLayerIndex] = {
+            ...newLayers[activeLayerIndex],
+            pixels: newPixels
+          }
+          return newLayers
+        })
+      },
       setStartPoint,
       setLassoPath,
       setSelection,
@@ -163,7 +255,16 @@ export default function App() {
       brushOpacity,
       strokeWidth,
       setPixel,
-      setPixels,
+      setPixels: (newPixels) => {
+        setLayers(prev => {
+          const newLayers = [...prev]
+          newLayers[activeLayerIndex] = {
+            ...newLayers[activeLayerIndex],
+            pixels: newPixels
+          }
+          return newLayers
+        })
+      },
       setSelection,
       setLassoPath,
       setHasMoved
@@ -174,7 +275,7 @@ export default function App() {
   useEffect(() => {
     if (prevIsDrawingRef.current && !isDrawing && hasMoved) {
       const timer = setTimeout(() => {
-        handleSaveToHistory(pixels)
+        handleSaveToHistory(layers)
         setHasMoved(false)
       }, 50)
       prevIsDrawingRef.current = isDrawing
@@ -182,13 +283,13 @@ export default function App() {
     }
     if (fillJustUsedRef.current && !isDrawing) {
       const timer = setTimeout(() => {
-        handleSaveToHistory(pixels)
+        handleSaveToHistory(layers)
         fillJustUsedRef.current = false
       }, 100)
       return () => clearTimeout(timer)
     }
     prevIsDrawingRef.current = isDrawing
-  }, [isDrawing, hasMoved, pixels, handleSaveToHistory])
+  }, [isDrawing, hasMoved, layers, handleSaveToHistory])
 
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -231,7 +332,16 @@ export default function App() {
       selection,
       GRID_SIZE,
       strokeWidth,
-      setPixels,
+      setPixels: (newPixels) => {
+        setLayers(prev => {
+          const newLayers = [...prev]
+          newLayers[activeLayerIndex] = {
+            ...newLayers[activeLayerIndex],
+            pixels: newPixels
+          }
+          return newLayers
+        })
+      },
       setSelection,
       setStartPoint,
       setLassoPath,
@@ -270,11 +380,11 @@ export default function App() {
 
   return (
     <div className="bg-neutral-900 text-white w-full h-screen flex flex-row items-center justify-center">
-      <div className="w-16 flex flex-col items-center justify-start">
+      <div className="w-12 flex flex-col items-center justify-start ml-2 rounded-xl gap-1.5">
         <button
           onClick={handleUndo}
           disabled={!undoAvailable}
-          className={`w-16 h-16 bg-neutral-700 flex items-center justify-center border-b-2 border-neutral-800 active:bg-neutral-700/50 ${!undoAvailable ? 'opacity-50 cursor-not-allowed' : ''}`}
+          className={`w-12 h-12 bg-neutral-700 flex items-center justify-center active:bg-neutral-700/50 rounded-xl ${!undoAvailable ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
           title="Undo"
         >
           <img 
@@ -286,7 +396,7 @@ export default function App() {
         <button
           onClick={handleRedo}
           disabled={!redoAvailable}
-          className={`w-16 h-16 bg-neutral-700 flex items-center justify-center border-b-2 border-neutral-800 active:bg-neutral-700/50 ${!redoAvailable ? 'opacity-50 cursor-not-allowed' : ''}`}
+          className={`w-12 h-12 bg-neutral-700 flex items-center justify-center active:bg-neutral-700/50 rounded-xl ${!redoAvailable ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
           title="Redo"
         >
           <img 
@@ -300,7 +410,7 @@ export default function App() {
           <button 
             key={tool.id} 
             onClick={() => setSelectedTool(tool.id)} 
-            className={`w-16 h-16 bg-neutral-700 flex items-center justify-center border-b-2 border-neutral-800 active:bg-neutral-700/50 ${selectedTool === tool.id ? 'bg-neutral-800/50' : ''}`} 
+            className={`w-12 h-12 bg-neutral-700 flex items-center justify-center active:bg-neutral-700/50 rounded-xl cursor-pointer ${selectedTool === tool.id ? 'bg-neutral-800/50' : ''}`} 
             title={tool.label}
           >
             <img 
@@ -340,6 +450,13 @@ export default function App() {
         onOpacityChange={setBrushOpacity}
         strokeWidth={strokeWidth}
         onStrokeWidthChange={setStrokeWidth}
+        layers={layers}
+        activeLayerIndex={activeLayerIndex}
+        onLayerSelect={selectLayer}
+        onLayerAdd={addLayer}
+        onLayerDelete={deleteLayer}
+        onLayerToggleVisibility={toggleLayerVisibility}
+        onLayerReorder={reorderLayer}
       />
     </div>
   )

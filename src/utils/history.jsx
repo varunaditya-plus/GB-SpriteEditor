@@ -1,16 +1,16 @@
 export const createHistory = (initialState) => {
   return {
-    history: [initialState],
+    history: [JSON.parse(JSON.stringify(initialState))],
     historyIndex: 0,
     isUndoRedoRef: { current: false }
   }
 }
 
-export const saveToHistory = (history, historyIndex, newPixels, isUndoRedoRef) => {
+export const saveToHistory = (history, historyIndex, newLayers, isUndoRedoRef) => {
   if (isUndoRedoRef.current) return
   
   const newHistory = history.slice(0, historyIndex + 1)
-  newHistory.push([...newPixels])
+  newHistory.push(JSON.parse(JSON.stringify(newLayers)))
   const limitedHistory = newHistory.length > 50 ? newHistory.slice(-50) : newHistory
   const newIndex = Math.min(historyIndex + 1, 49)
   
@@ -20,11 +20,11 @@ export const saveToHistory = (history, historyIndex, newPixels, isUndoRedoRef) =
   }
 }
 
-export const undo = (history, historyIndex, setPixels, isUndoRedoRef) => {
+export const undo = (history, historyIndex, setLayers, isUndoRedoRef) => {
   if (historyIndex > 0) {
     isUndoRedoRef.current = true
     const newIndex = historyIndex - 1
-    setPixels([...history[newIndex]])
+    setLayers(JSON.parse(JSON.stringify(history[newIndex])))
     setTimeout(() => {
       isUndoRedoRef.current = false
     }, 100)
@@ -33,11 +33,11 @@ export const undo = (history, historyIndex, setPixels, isUndoRedoRef) => {
   return historyIndex
 }
 
-export const redo = (history, historyIndex, setPixels, isUndoRedoRef) => {
+export const redo = (history, historyIndex, setLayers, isUndoRedoRef) => {
   if (historyIndex < history.length - 1) {
     isUndoRedoRef.current = true
     const newIndex = historyIndex + 1
-    setPixels([...history[newIndex]])
+    setLayers(JSON.parse(JSON.stringify(history[newIndex])))
     setTimeout(() => {
       isUndoRedoRef.current = false
     }, 100)

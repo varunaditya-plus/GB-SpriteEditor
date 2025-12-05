@@ -60,11 +60,6 @@ export const handleToolMouseDown = ({
     setLassoPath([])
   }
 
-  // Save original pixels for preview tools
-  if (selectedTool === 'line' || selectedTool === 'rectangle' || selectedTool === 'circle') {
-    setOriginalPixels([...pixels])
-  }
-
   // If right-click with pencil or eraser, treat as eraser
   if ((selectedTool === 'pencil' || selectedTool === 'eraser') && isRightButton) {
     handleEraserDown(index, brushThickness, brushOpacity, GRID_SIZE, pixels, setPixel)
