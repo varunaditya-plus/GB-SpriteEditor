@@ -8,7 +8,7 @@ import CropOverlay from './components/CropOverlay'
 import ExportModal from './components/ExportModal'
 import { handleToolMouseDown, handleToolMouseMove, handleToolMouseUp, checkHoveringSelection } from './utils/toolHandler'
 import { initializeCanvas, drawCanvas, getPixelIndex as getPixelIndexUtil } from './utils/canvas'
-import { createHistory, saveToHistory, undo, redo, canUndo, canRedo } from './utils/history'
+import { createHistory, saveToHistory, undo, redo, canUndo, canRedo, createStateSnapshot } from './utils/history'
 import { loadImageToPixels, loadGifFrames } from './utils/imageUtils'
 import { exportPNG, exportGIF, exportCH, exportJSON } from './utils/exportUtils'
 import { createSelectionContextMenuHandlers } from './utils/selectionContextMenu'
@@ -64,7 +64,9 @@ export default function App() {
   const [contextMenu, setContextMenu] = useState({ isOpen: false, x: 0, y: 0 })
   const [cropSelection, setCropSelection] = useState(null)
   const initialHistoryState = {
-    frames: [{ id: 0, name: 'Frame 1', layers: [{ id: 0, name: 'Layer 1', visible: true, pixels: Array(DEFAULT_GRID_WIDTH * DEFAULT_GRID_HEIGHT).fill(null) }], visible: true }]
+    frames: [{ id: 0, name: 'Frame 1', layers: [{ id: 0, name: 'Layer 1', visible: true, pixels: Array(DEFAULT_GRID_WIDTH * DEFAULT_GRID_HEIGHT).fill(null) }], visible: true }],
+    gridWidth: DEFAULT_GRID_WIDTH,
+    gridHeight: DEFAULT_GRID_HEIGHT
   }
   const historyState = createHistory(initialHistoryState)
   const [history, setHistory] = useState(historyState.history)
@@ -237,17 +239,19 @@ export default function App() {
   }, [activeLayerIndex, framesEnabled, activeFrameIndex, frames.length, gridWidth, gridHeight, normalizePixelArray])
 
   const handleSaveToHistory = useCallback(() => {
-    const stateToSave = { frames }
+    const stateToSave = createStateSnapshot(frames, gridWidth, gridHeight)
     const result = saveToHistory(history, historyIndex, stateToSave, isUndoRedoRef)
     if (result) {
       setHistory(result.history)
       setHistoryIndex(result.historyIndex)
     }
-  }, [historyIndex, history, frames])
+  }, [historyIndex, history, frames, gridWidth, gridHeight])
 
   const handleUndo = useCallback(() => {
     const restoreState = (state) => {
       setFrames(state.frames)
+      if (state.gridWidth !== undefined) setGridWidth(state.gridWidth)
+      if (state.gridHeight !== undefined) setGridHeight(state.gridHeight)
     }
     const newIndex = undo(history, historyIndex, restoreState, isUndoRedoRef)
     if (newIndex !== historyIndex) {
@@ -258,6 +262,8 @@ export default function App() {
   const handleRedo = useCallback(() => {
     const restoreState = (state) => {
       setFrames(state.frames)
+      if (state.gridWidth !== undefined) setGridWidth(state.gridWidth)
+      if (state.gridHeight !== undefined) setGridHeight(state.gridHeight)
     }
     const newIndex = redo(history, historyIndex, restoreState, isUndoRedoRef)
     if (newIndex !== historyIndex) {
@@ -289,7 +295,8 @@ export default function App() {
     })
     
     setActiveLayerIndex(prev => prev + 1)
-  }, [nextLayerId, framesEnabled, activeFrameIndex, frames.length, gridWidth, gridHeight])
+    setTimeout(() => handleSaveToHistory(), 0)
+  }, [nextLayerId, framesEnabled, activeFrameIndex, frames.length, gridWidth, gridHeight, handleSaveToHistory])
 
   const deleteLayer = useCallback((index) => {
     const frameIndex = framesEnabled ? activeFrameIndex : 0
@@ -311,7 +318,8 @@ export default function App() {
     } else if (activeLayerIndex >= frame.layers.length - 1) {
       setActiveLayerIndex(frame.layers.length - 2)
     }
-  }, [framesEnabled, activeFrameIndex, frames, activeLayerIndex])
+    setTimeout(() => handleSaveToHistory(), 0)
+  }, [framesEnabled, activeFrameIndex, frames, activeLayerIndex, handleSaveToHistory])
 
   const selectLayer = useCallback((index) => {
     const frameIndex = framesEnabled ? activeFrameIndex : 0
@@ -341,7 +349,8 @@ export default function App() {
       }
       return newFrames
     })
-  }, [framesEnabled, activeFrameIndex, frames.length])
+    setTimeout(() => handleSaveToHistory(), 0)
+  }, [framesEnabled, activeFrameIndex, frames.length, handleSaveToHistory])
 
   const reorderLayer = useCallback((fromIndex, toIndex) => {
     if (fromIndex === toIndex) return
@@ -379,7 +388,8 @@ export default function App() {
     })
     
     setActiveLayerIndex(newActiveIndex)
-  }, [framesEnabled, activeFrameIndex, frames, activeLayerIndex])
+    setTimeout(() => handleSaveToHistory(), 0)
+  }, [framesEnabled, activeFrameIndex, frames, activeLayerIndex, handleSaveToHistory])
 
   const toggleFrames = useCallback(() => {
     if (!framesEnabled) {
@@ -407,7 +417,8 @@ export default function App() {
       setActiveFrameIndex(0)
     }
     setFramesEnabled(prev => !prev)
-  }, [framesEnabled, frames, gridWidth, gridHeight])
+    setTimeout(() => handleSaveToHistory(), 0)
+  }, [framesEnabled, frames, gridWidth, gridHeight, handleSaveToHistory])
 
   const addFrame = useCallback(() => {
     setFrames(prev => {
@@ -426,7 +437,8 @@ export default function App() {
       return [...prev, newFrame]
     })
     setActiveFrameIndex(prev => prev + 1)
-  }, [nextFrameId, gridWidth, gridHeight])
+    setTimeout(() => handleSaveToHistory(), 0)
+  }, [nextFrameId, gridWidth, gridHeight, handleSaveToHistory])
 
   const duplicateFrame = useCallback((index) => {
     if (index < 0 || index >= frames.length) return
@@ -451,7 +463,8 @@ export default function App() {
     })
     
     setActiveFrameIndex(index + 1)
-  }, [frames, nextFrameId])
+    setTimeout(() => handleSaveToHistory(), 0)
+  }, [frames, nextFrameId, handleSaveToHistory])
 
   const deleteFrame = useCallback((index) => {
     if (frames.length <= 1) return
@@ -463,7 +476,8 @@ export default function App() {
     } else if (activeFrameIndex >= frames.length - 1) {
       setActiveFrameIndex(frames.length - 2)
     }
-  }, [frames.length, activeFrameIndex])
+    setTimeout(() => handleSaveToHistory(), 0)
+  }, [frames.length, activeFrameIndex, handleSaveToHistory])
 
   const selectFrame = useCallback((index) => {
     if (index >= 0 && index < frames.length) {
@@ -481,7 +495,8 @@ export default function App() {
       }
       return newFrames
     })
-  }, [])
+    setTimeout(() => handleSaveToHistory(), 0)
+  }, [handleSaveToHistory])
 
   const reorderFrame = useCallback((fromIndex, toIndex) => {
     if (fromIndex === toIndex) return
@@ -505,7 +520,8 @@ export default function App() {
     })
     
     setActiveFrameIndex(newActiveIndex)
-  }, [frames.length, activeFrameIndex])
+    setTimeout(() => handleSaveToHistory(), 0)
+  }, [frames.length, activeFrameIndex, handleSaveToHistory])
 
   const handleFileUpload = useCallback(async (event) => {
     const files = Array.from(event.target.files || [])
@@ -577,9 +593,7 @@ export default function App() {
         }
         
         // Reset history with new state
-        const newHistoryState = {
-          frames: normalizedFrames
-        }
+        const newHistoryState = createStateSnapshot(normalizedFrames, restoredGridWidth, restoredGridHeight)
         const newHistory = createHistory(newHistoryState)
         setHistory(newHistory.history)
         setHistoryIndex(newHistory.historyIndex)
@@ -695,6 +709,16 @@ export default function App() {
         setFramesEnabled(true)
       }
 
+      // Save to history after loading images
+      setTimeout(() => {
+        const stateToSave = createStateSnapshot(newFrames, detectedWidth, detectedHeight)
+        const result = saveToHistory(history, historyIndex, stateToSave, isUndoRedoRef)
+        if (result) {
+          setHistory(result.history)
+          setHistoryIndex(result.historyIndex)
+        }
+      }, 0)
+
       event.target.value = ''
     } catch (error) {
       console.error('Error loading images:', error)
@@ -771,7 +795,8 @@ export default function App() {
 
     setGridWidth(newWidth)
     setGridHeight(newHeight)
-  }, [gridWidth, gridHeight])
+    setTimeout(() => handleSaveToHistory(), 0)
+  }, [gridWidth, gridHeight, handleSaveToHistory])
 
   const handleCropSave = useCallback(() => {
     if (!cropSelection) return

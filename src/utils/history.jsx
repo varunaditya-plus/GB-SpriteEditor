@@ -6,6 +6,11 @@ export const createHistory = (initialState) => {
   }
 }
 
+// Helper to create a full state snapshot
+export const createStateSnapshot = (frames, gridWidth, gridHeight) => {
+  return { frames: JSON.parse(JSON.stringify(frames)), gridWidth, gridHeight }
+}
+
 export const saveToHistory = (history, historyIndex, newLayers, isUndoRedoRef) => {
   if (isUndoRedoRef.current) return
   
