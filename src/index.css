@@ -37,3 +37,12 @@ input[type="range"]::-moz-range-track {
   height: 8px;
   border-radius: 4px;
 }
+
+* { 
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
+*::-webkit-scrollbar {
+  display: none !important;
+}

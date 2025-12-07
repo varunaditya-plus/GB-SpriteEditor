@@ -1,5 +1,6 @@
 import ColorPicker from './ColorPicker'
 import Layers from './Layers'
+import { AnimationPreview } from './Frames'
 
 export default function Panels({
   selectedTool,
@@ -17,7 +18,22 @@ export default function Panels({
   onLayerAdd,
   onLayerDelete,
   onLayerToggleVisibility,
-  onLayerReorder
+  onLayerReorder,
+  framesEnabled,
+  onFramesToggle,
+  frames,
+  frameLayers,
+  activeFrameIndex,
+  onFrameSelect,
+  onFrameAdd,
+  onFrameDelete,
+  onFrameToggleVisibility,
+  onFrameReorder,
+  fps,
+  onFpsChange,
+  gridSize,
+  cellSize,
+  canvasSize
 }) {
   const showBrushSettings = selectedTool === 'pencil' || selectedTool === 'eraser'
   const showStrokeSettings = selectedTool === 'line' || selectedTool === 'rectangle' || selectedTool === 'circle'
@@ -107,6 +123,41 @@ export default function Panels({
         onLayerToggleVisibility={onLayerToggleVisibility}
         onLayerReorder={onLayerReorder}
       />
+
+      <div className="flex flex-col gap-2 pt-2 border-t border-neutral-700">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="text-sm font-medium text-neutral-300">Frames</div>
+            <button
+              onClick={onFramesToggle}
+              className={`w-10 h-5 rounded-full transition-colors ${
+                framesEnabled ? 'bg-blue-600' : 'bg-neutral-600'
+              }`}
+              title={framesEnabled ? 'Disable frames' : 'Enable frames'}
+            >
+              <div
+                className={`w-4 h-4 bg-white rounded-full transition-transform ${
+                  framesEnabled ? 'translate-x-5' : 'translate-x-0.5'
+                }`}
+                style={{ marginTop: '2px' }}
+              />
+            </button>
+          </div>
+        </div>
+
+        {framesEnabled && frames.length > 0 && (
+          <AnimationPreview
+            frames={frames}
+            layers={frameLayers}
+            fps={fps}
+            onFpsChange={onFpsChange}
+            gridSize={gridSize}
+            cellSize={cellSize}
+            canvasSize={canvasSize}
+          />
+        )}
+      </div>
+
     </div>
   )
 }

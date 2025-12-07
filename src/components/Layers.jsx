@@ -29,6 +29,8 @@ function LayerPreview({ pixels, visible }) {
       }
     }
 
+    if (!pixels) return
+
     pixels.forEach((color, index) => {
       if (color) {
         const row = Math.floor(index / GRID_SIZE)
