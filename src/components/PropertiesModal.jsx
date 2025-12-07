@@ -107,7 +107,7 @@ export default function PropertiesModal({ isOpen, onClose, gridWidth, gridHeight
           </div>
         </div>
 
-        <div className="flex gap-2 justify-end pt-2 border-t border-neutral-700">
+        <div className="flex gap-2 justify-end pt-2">
           <button
             onClick={handleCancel}
             className="px-4 py-2 bg-neutral-700 hover:bg-neutral-600 rounded text-sm text-neutral-200 transition-colors"

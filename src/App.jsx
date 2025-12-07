@@ -4,10 +4,13 @@ import Frames from './components/Frames'
 import PropertiesModal from './components/PropertiesModal'
 import ErrorModal from './components/ErrorModal'
 import ContextMenu from './components/ContextMenu'
+import CropOverlay from './components/CropOverlay'
+import ExportModal from './components/ExportModal'
 import { handleToolMouseDown, handleToolMouseMove, handleToolMouseUp, checkHoveringSelection } from './utils/toolHandler'
 import { initializeCanvas, drawCanvas, getPixelIndex as getPixelIndexUtil } from './utils/canvas'
 import { createHistory, saveToHistory, undo, redo, canUndo, canRedo } from './utils/history'
-import { loadImageToPixels, loadGifFrames, pixelsToCCode } from './utils/imageUtils'
+import { loadImageToPixels, loadGifFrames } from './utils/imageUtils'
+import { exportPNG, exportGIF, exportCH } from './utils/exportUtils'
 import { createSelectionContextMenuHandlers } from './utils/selectionContextMenu'
 
 const DEFAULT_GRID_WIDTH = 32
@@ -20,6 +23,7 @@ export default function App() {
   const [canvasBackgroundColor, setCanvasBackgroundColor] = useState('#171717')
   const [isPropertiesModalOpen, setIsPropertiesModalOpen] = useState(false)
   const [errorModal, setErrorModal] = useState({ isOpen: false, message: '' })
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false)
   const [selectedTool, setSelectedTool] = useState('pencil')
   const [currentColor, setCurrentColor] = useState('#ffffff')
   const [brushThickness, setBrushThickness] = useState(1)
@@ -54,6 +58,7 @@ export default function App() {
   const [hasMoved, setHasMoved] = useState(false)
   const [isHoveringSelection, setIsHoveringSelection] = useState(false)
   const [contextMenu, setContextMenu] = useState({ isOpen: false, x: 0, y: 0 })
+  const [cropSelection, setCropSelection] = useState(null)
   const initialHistoryState = {
     layers: [{ id: 0, name: 'Layer 1', visible: true }],
     frames: [{ id: 0, name: 'Frame 1', layerPixels: [Array(DEFAULT_GRID_WIDTH * DEFAULT_GRID_HEIGHT).fill(null)], visible: true }]
@@ -188,8 +193,8 @@ export default function App() {
     if (!canvas || canvasDisplaySize.width === 0 || canvasDisplaySize.height === 0) return
     const cellSizeX = canvasDisplaySize.width / gridWidth
     const cellSizeY = canvasDisplaySize.height / gridHeight
-    drawCanvas(canvas, canvasDisplaySize.width, canvasDisplaySize.height, gridWidth, gridHeight, cellSizeX, cellSizeY, currentLayers, selection)
-  }, [currentLayers, selection, canvasDisplaySize, gridWidth, gridHeight])
+    drawCanvas(canvas, canvasDisplaySize.width, canvasDisplaySize.height, gridWidth, gridHeight, cellSizeX, cellSizeY, currentLayers, selection, cropSelection)
+  }, [currentLayers, selection, canvasDisplaySize, gridWidth, gridHeight, cropSelection])
 
   useEffect(() => {
     renderCanvas()
@@ -536,37 +541,26 @@ export default function App() {
   }, [framesEnabled, nextFrameId, gridWidth, gridHeight])
 
   const handleExport = useCallback(() => {
-    const currentFrame = frames[activeFrameIndex]
-    if (!currentFrame || !currentFrame.layerPixels || currentFrame.layerPixels.length === 0) {
-      alert('No frame data to export')
-      return
-    }
+    setIsExportModalOpen(true)
+  }, [])
 
-    const pixels = currentFrame.layerPixels[0] || Array(gridWidth * gridHeight).fill(null)
-    const { c: cCode, h: hCode } = pixelsToCCode(pixels, gridWidth, gridHeight)
-    
-    // Download .c file
-    const cBlob = new Blob([cCode], { type: 'text/plain' })
-    const cUrl = URL.createObjectURL(cBlob)
-    const cLink = document.createElement('a')
-    cLink.href = cUrl
-    cLink.download = 'sprite.c'
-    document.body.appendChild(cLink)
-    cLink.click()
-    document.body.removeChild(cLink)
-    URL.revokeObjectURL(cUrl)
-    
-    // Download .h file
-    const hBlob = new Blob([hCode], { type: 'text/plain' })
-    const hUrl = URL.createObjectURL(hBlob)
-    const hLink = document.createElement('a')
-    hLink.href = hUrl
-    hLink.download = 'sprite.h'
-    document.body.appendChild(hLink)
-    hLink.click()
-    document.body.removeChild(hLink)
-    URL.revokeObjectURL(hUrl)
-  }, [frames, activeFrameIndex, gridWidth, gridHeight])
+  const handleExportFormat = useCallback(async (format) => {
+    try {
+      if (format === 'png') {
+        await exportPNG(frames, layers, gridWidth, gridHeight, framesEnabled)
+      } else if (format === 'gif') {
+        await exportGIF(frames, layers, gridWidth, gridHeight, fps, framesEnabled)
+      } else if (format === 'ch') {
+        await exportCH(frames, layers, gridWidth, gridHeight, framesEnabled)
+      }
+    } catch (error) {
+      console.error('Export error:', error)
+      setErrorModal({
+        isOpen: true,
+        message: `Failed to export: ${error.message || 'Unknown error'}`
+      })
+    }
+  }, [frames, layers, gridWidth, gridHeight, framesEnabled, fps])
 
   const handleGridSizeChange = useCallback((newWidth, newHeight) => {
     if (newWidth < 1 || newWidth > 256 || newHeight < 1 || newHeight > 256) return
@@ -595,6 +589,44 @@ export default function App() {
     setGridHeight(newHeight)
   }, [gridWidth, gridHeight])
 
+  const handleCropSave = useCallback(() => {
+    if (!cropSelection) return
+
+    const { minRow, maxRow, minCol, maxCol, width, height } = cropSelection
+
+    // Crop pixels from all frames and layers
+    setFrames(prev => prev.map(frame => ({
+      ...frame,
+      layerPixels: frame.layerPixels.map(layerPixels => {
+        const croppedPixels = Array(width * height).fill(null)
+        for (let row = 0; row < height; row++) {
+          for (let col = 0; col < width; col++) {
+            const oldRow = minRow + row
+            const oldCol = minCol + col
+            const oldIndex = oldRow * gridWidth + oldCol
+            const newIndex = row * width + col
+            if (oldIndex >= 0 && oldIndex < layerPixels.length) {
+              croppedPixels[newIndex] = layerPixels[oldIndex] || null
+            }
+          }
+        }
+        return croppedPixels
+      })
+    })))
+
+    setGridWidth(width)
+    setGridHeight(height)
+    setCropSelection(null)
+    setSelectedTool('pencil')
+    handleSaveToHistory()
+  }, [cropSelection, gridWidth, gridHeight, handleSaveToHistory])
+
+  const handleCropCancel = useCallback(() => {
+    setCropSelection(null)
+    setStartPoint(null)
+    setSelectedTool('pencil')
+  }, [])
+
   const handleMouseDown = (e) => {
     const isRightButton = e.button === 2
     
@@ -609,8 +641,11 @@ export default function App() {
     setHasMoved(false)
     const index = getPixelIndex(e.clientX, e.clientY)
     
-    if (selectedTool === 'line' || selectedTool === 'rectangle' || selectedTool === 'circle') {
-      setOriginalPixels([...pixels])
+    if (selectedTool === 'line' || selectedTool === 'rectangle' || selectedTool === 'circle' || selectedTool === 'crop') {
+      if (selectedTool !== 'crop') {
+        setOriginalPixels([...pixels])
+      }
+      setIsDrawing(true)
     }
     
     handleToolMouseDown({
@@ -664,7 +699,7 @@ export default function App() {
     setIsHoveringSelection(checkHoveringSelection(index, selection, isDrawing))
   }
 
-  const handleMouseMove = (e) => {
+  const handleMouseMove = useCallback((e) => {
     handleMouseHover(e)
     
     const index = getPixelIndex(e.clientX, e.clientY)
@@ -706,9 +741,10 @@ export default function App() {
       },
       setSelection,
       setLassoPath,
+      setCropSelection,
       setHasMoved
     })
-  }
+  }, [selectedTool, isRightClick, isDrawing, isMovingSelection, moveStartIndex, originalPixels, originalSelection, startPoint, lassoPath, currentColor, pixels, selection, gridWidth, gridHeight, brushThickness, brushOpacity, strokeWidth, framesEnabled, activeFrameIndex, activeLayerIndex, normalizePixelArray, setPixel, setSelection, setLassoPath, setCropSelection, setHasMoved])
 
   const prevIsDrawingRef = useRef(isDrawing)
   useEffect(() => {
@@ -759,6 +795,7 @@ export default function App() {
       selectedTool,
       index,
       isDrawing,
+      isRightClick,
       isMovingSelection,
       moveStartIndex,
       originalPixels,
@@ -790,6 +827,7 @@ export default function App() {
       setSelection,
       setStartPoint,
       setLassoPath,
+      setCropSelection,
       setIsMovingSelection,
       setMoveStartIndex,
       setOriginalPixels,
@@ -798,6 +836,48 @@ export default function App() {
       setIsRightClick
     })
   }
+
+  // Add global mouse event listeners for crop tool to handle fast mouse movement
+  const isDrawingRef = useRef(isDrawing)
+  const selectedToolRef = useRef(selectedTool)
+  const handleMouseMoveRef = useRef(null)
+  const handleMouseUpRef = useRef(null)
+  
+  useEffect(() => {
+    isDrawingRef.current = isDrawing
+    selectedToolRef.current = selectedTool
+    handleMouseMoveRef.current = handleMouseMove
+    handleMouseUpRef.current = handleMouseUp
+  }, [isDrawing, selectedTool, handleMouseMove, handleMouseUp])
+
+  useEffect(() => {
+    // Add global mouse event listeners for all tools when drawing
+    if (isDrawing) {
+      const handleGlobalMouseMove = (e) => {
+        // Only process if still drawing
+        // Don't prevent default or stop propagation - let events flow normally
+        if (isDrawingRef.current && handleMouseMoveRef.current) {
+          handleMouseMoveRef.current(e)
+        }
+      }
+
+      const handleGlobalMouseUp = (e) => {
+        // Only process if still drawing
+        if (isDrawingRef.current && handleMouseUpRef.current) {
+          handleMouseUpRef.current(e)
+        }
+      }
+
+      // Use capture phase to catch events before they reach buttons
+      document.addEventListener('mousemove', handleGlobalMouseMove, true)
+      document.addEventListener('mouseup', handleGlobalMouseUp, true)
+
+      return () => {
+        document.removeEventListener('mousemove', handleGlobalMouseMove, true)
+        document.removeEventListener('mouseup', handleGlobalMouseUp, true)
+      }
+    }
+  }, [isDrawing])
 
   const handleContextMenu = (e) => {
     e.preventDefault()
@@ -857,6 +937,7 @@ export default function App() {
     { id: 'rectangleSelection', label: 'rectangle selection' },
     { id: 'lassoSelection', label: 'lasso selection' },
     { id: 'colorPicker', label: 'color picker' },
+    { id: 'crop', label: 'crop' },
   ]
 
   const undoAvailable = canUndo(historyIndex)
@@ -904,7 +985,6 @@ export default function App() {
               onMouseMove={handleMouseMove}
               onMouseUp={handleMouseUp}
               onMouseLeave={(e) => {
-                handleMouseUp(e)
                 setIsHoveringSelection(false)
               }}
               onContextMenu={handleContextMenu}
@@ -986,6 +1066,25 @@ export default function App() {
         onSplitToFrame={handleSplitToFrame}
         onCopyToFrame={handleCopyToFrame}
         framesEnabled={framesEnabled}
+      />
+
+      {selectedTool === 'crop' && cropSelection && (
+        <CropOverlay
+          cropSelection={cropSelection}
+          canvasRef={canvasRef}
+          canvasDisplaySize={canvasDisplaySize}
+          gridWidth={gridWidth}
+          gridHeight={gridHeight}
+          onSave={handleCropSave}
+          onCancel={handleCropCancel}
+          isDrawing={isDrawing}
+        />
+      )}
+
+      <ExportModal
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
+        onExport={handleExportFormat}
       />
     </div>
   )

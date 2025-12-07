@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import ColorPicker from './ColorPicker'
+import ColorPalette from './ColorPalette'
 import Layers from './Layers'
 import { AnimationPreview } from './Frames'
 import PropertiesModal from './PropertiesModal'
@@ -48,6 +49,14 @@ export default function Panels({
   return (
     <div className="w-64 bg-neutral-800 border-l border-neutral-700 p-4 flex flex-col gap-4 h-full overflow-y-auto">
       <ColorPicker currentColor={currentColor} onColorChange={onColorChange} />
+
+      <ColorPalette
+        frames={frames}
+        frameLayers={frameLayers}
+        framesEnabled={framesEnabled}
+        currentColor={currentColor}
+        onColorChange={onColorChange}
+      />
 
       {showBrushSettings && (
         <div className="flex flex-col gap-3 pt-2 border-t border-neutral-700">

@@ -8,7 +8,7 @@ export const initializeCanvas = (canvas, canvasWidth, canvasHeight) => {
   canvas.style.height = `${canvasHeight}px`
 }
 
-export const drawCanvas = (canvas, canvasWidth, canvasHeight, gridWidth, gridHeight, cellSizeX, cellSizeY, layers, selection) => {
+export const drawCanvas = (canvas, canvasWidth, canvasHeight, gridWidth, gridHeight, cellSizeX, cellSizeY, layers, selection, cropSelection) => {
   if (!canvas) return
 
   const ctx = canvas.getContext('2d')
@@ -93,22 +93,50 @@ export const drawCanvas = (canvas, canvasWidth, canvasHeight, gridWidth, gridHei
       ctx.strokeRect(x, y, width, height)
     })
   }
+
+  // Draw crop selection overlay
+  if (cropSelection) {
+    const x = cropSelection.minCol * cellSizeX
+    const y = cropSelection.minRow * cellSizeY
+    const width = cropSelection.width * cellSizeX
+    const height = cropSelection.height * cellSizeY
+
+    // Draw semi-transparent overlay outside crop area
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)'
+    // Top
+    ctx.fillRect(0, 0, canvasWidth, y)
+    // Bottom
+    ctx.fillRect(0, y + height, canvasWidth, canvasHeight - (y + height))
+    // Left
+    ctx.fillRect(0, y, x, height)
+    // Right
+    ctx.fillRect(x + width, y, canvasWidth - (x + width), height)
+
+    // Draw crop border
+    ctx.strokeStyle = '#ffffff'
+    ctx.lineWidth = 2
+    ctx.strokeRect(x, y, width, height)
+  }
 }
 
 export const getPixelIndex = (canvas, x, y, gridWidth, gridHeight, cellSizeX, cellSizeY) => {
   if (!canvas) return null
   
   const rect = canvas.getBoundingClientRect()
-  const canvasX = x - rect.left
-  const canvasY = y - rect.top
+  let canvasX = x - rect.left
+  let canvasY = y - rect.top
+  
+  // Clamp to canvas bounds for tools that need continuous tracking (like crop)
+  canvasX = Math.max(0, Math.min(canvasX, rect.width))
+  canvasY = Math.max(0, Math.min(canvasY, rect.height))
   
   const cellX = Math.floor(canvasX / cellSizeX)
   const cellY = Math.floor(canvasY / cellSizeY)
   
-  if (cellX < 0 || cellX >= gridWidth || cellY < 0 || cellY >= gridHeight) {
-    return null
-  }
+  // Clamp cell coordinates to grid bounds
+  const clampedCellX = Math.max(0, Math.min(cellX, gridWidth - 1))
+  const clampedCellY = Math.max(0, Math.min(cellY, gridHeight - 1))
   
-  return cellY * gridWidth + cellX
+  return clampedCellY * gridWidth + clampedCellX
 }
 

@@ -12,6 +12,8 @@
   "dependencies": {
     "@tailwindcss/vite": "^4.1.17",
     "color-name-list": "^13.40.0",
+    "gif.js": "^0.2.0",
+    "jszip": "^3.10.1",
     "nearest-color": "^0.4.4",
     "omggif": "^1.0.10",
     "phosphor-react": "^1.4.1",

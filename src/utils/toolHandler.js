@@ -8,6 +8,7 @@ import { handleCircleDown, handleCircleMove, handleCircleUp } from './tools/circ
 import { handleColorPickerDown } from './tools/colorPicker'
 import { handleRectangleSelectionDown, handleRectangleSelectionMove, handleRectangleSelectionUp } from './tools/rectangleSelection'
 import { handleLassoSelectionDown, handleLassoSelectionMove, handleLassoSelectionUp } from './tools/lassoSelection'
+import { handleCropDown, handleCropMove, handleCropUp } from './tools/crop'
 import { moveSelection, updateSelectionIndices, isInSelection } from './tools/moveSelection'
 
 export const handleToolMouseDown = ({
@@ -61,8 +62,8 @@ export const handleToolMouseDown = ({
     setLassoPath([])
   }
 
-  // If right-click with pencil or eraser, treat as eraser
-  if ((selectedTool === 'pencil' || selectedTool === 'eraser') && isRightButton) {
+  // If right-click with pencil, eraser, rectangle, circle, line, or fill, treat as eraser
+  if ((selectedTool === 'pencil' || selectedTool === 'eraser' || selectedTool === 'rectangle' || selectedTool === 'circle' || selectedTool === 'line' || selectedTool === 'fill') && isRightButton) {
     handleEraserDown(index, brushThickness, brushOpacity, gridWidth, gridHeight, pixels, setPixel)
     return
   }
@@ -98,6 +99,9 @@ export const handleToolMouseDown = ({
     case 'colorPicker':
       handleColorPickerDown(index, pixels, setCurrentColor)
       break
+    case 'crop':
+      handleCropDown(index, gridWidth, gridHeight, setStartPoint)
+      break
     default:
       break
   }
@@ -126,6 +130,7 @@ export const handleToolMouseMove = ({
   setPixels,
   setSelection,
   setLassoPath,
+  setCropSelection,
   setHasMoved
 }) => {
   if (!isDrawing) return
@@ -140,8 +145,8 @@ export const handleToolMouseMove = ({
     return
   }
 
-  // If right-click with pencil or eraser, treat as eraser
-  if ((selectedTool === 'pencil' || selectedTool === 'eraser') && isRightClick) {
+  // If right-click with pencil, eraser, rectangle, circle, line, or fill, treat as eraser
+  if ((selectedTool === 'pencil' || selectedTool === 'eraser' || selectedTool === 'rectangle' || selectedTool === 'circle' || selectedTool === 'line' || selectedTool === 'fill') && isRightClick) {
     handleEraserMove(index, brushThickness, brushOpacity, gridWidth, gridHeight, pixels, setPixel)
     return
   }
@@ -180,6 +185,11 @@ export const handleToolMouseMove = ({
     case 'lassoSelection':
       handleLassoSelectionMove(index, lassoPath, gridWidth, gridHeight, setLassoPath, setSelection)
       break
+    case 'crop':
+      if (startPoint !== null) {
+        handleCropMove(index, startPoint, gridWidth, gridHeight, setCropSelection)
+      }
+      break
     default:
       break
   }
@@ -189,6 +199,7 @@ export const handleToolMouseUp = ({
   selectedTool,
   index,
   isDrawing,
+  isRightClick,
   isMovingSelection,
   moveStartIndex,
   originalPixels,
@@ -206,6 +217,7 @@ export const handleToolMouseUp = ({
   setSelection,
   setStartPoint,
   setLassoPath,
+  setCropSelection,
   setIsMovingSelection,
   setMoveStartIndex,
   setOriginalPixels,
@@ -214,6 +226,21 @@ export const handleToolMouseUp = ({
   setIsRightClick
 }) => {
   if (!isDrawing) return
+
+  // Skip shape drawing logic if right-clicking with rectangle, circle, or line tools
+  if ((selectedTool === 'rectangle' || selectedTool === 'circle' || selectedTool === 'line') && isRightClick) {
+    // Clean up any state that might have been set
+    if (startPoint !== null) {
+      if (originalPixels !== null) {
+        setPixels([...originalPixels])
+      }
+      setStartPoint(null)
+    }
+    setIsDrawing(false)
+    setOriginalPixels(null)
+    setIsRightClick(false)
+    return
+  }
 
   // Handle finishing moving selection
   if (isMovingSelection && moveStartIndex !== null && originalPixels !== null && originalSelection !== null) {
@@ -274,6 +301,14 @@ export const handleToolMouseUp = ({
       } else if (lassoPath.length > 0) {
         setSelection(new Set())
         setLassoPath([])
+      }
+      break
+    case 'crop':
+      if (startPoint !== null && index !== null && hasMoved) {
+        handleCropUp(index, startPoint, gridWidth, gridHeight, setCropSelection, setStartPoint)
+      } else if (startPoint !== null) {
+        setCropSelection(null)
+        setStartPoint(null)
       }
       break
     default:
