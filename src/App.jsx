@@ -3,10 +3,12 @@ import Panels from './components/Panels'
 import Frames from './components/Frames'
 import PropertiesModal from './components/PropertiesModal'
 import ErrorModal from './components/ErrorModal'
+import ContextMenu from './components/ContextMenu'
 import { handleToolMouseDown, handleToolMouseMove, handleToolMouseUp, checkHoveringSelection } from './utils/toolHandler'
 import { initializeCanvas, drawCanvas, getPixelIndex as getPixelIndexUtil } from './utils/canvas'
 import { createHistory, saveToHistory, undo, redo, canUndo, canRedo } from './utils/history'
 import { loadImageToPixels, loadGifFrames, pixelsToCCode } from './utils/imageUtils'
+import { createSelectionContextMenuHandlers } from './utils/selectionContextMenu'
 
 const DEFAULT_GRID_WIDTH = 32
 const DEFAULT_GRID_HEIGHT = 32
@@ -51,6 +53,7 @@ export default function App() {
   const [originalSelection, setOriginalSelection] = useState(null)
   const [hasMoved, setHasMoved] = useState(false)
   const [isHoveringSelection, setIsHoveringSelection] = useState(false)
+  const [contextMenu, setContextMenu] = useState({ isOpen: false, x: 0, y: 0 })
   const initialHistoryState = {
     layers: [{ id: 0, name: 'Layer 1', visible: true }],
     frames: [{ id: 0, name: 'Frame 1', layerPixels: [Array(DEFAULT_GRID_WIDTH * DEFAULT_GRID_HEIGHT).fill(null)], visible: true }]
@@ -96,6 +99,19 @@ export default function App() {
       setLassoPath([])
     }
   }, [selectedTool])
+
+  useEffect(() => {
+    const handleClickOutside = () => {
+      if (contextMenu.isOpen) {
+        setContextMenu({ isOpen: false, x: 0, y: 0 })
+      }
+    }
+    
+    if (contextMenu.isOpen) {
+      document.addEventListener('click', handleClickOutside)
+      return () => document.removeEventListener('click', handleClickOutside)
+    }
+  }, [contextMenu.isOpen])
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -551,6 +567,13 @@ export default function App() {
 
   const handleMouseDown = (e) => {
     const isRightButton = e.button === 2
+    
+    // If right-clicking on an existing selection, don't process as a normal mouse down
+    // The context menu will handle it
+    if (isRightButton && selection.size > 0 && (selectedTool === 'rectangleSelection' || selectedTool === 'lassoSelection')) {
+      return
+    }
+    
     setIsRightClick(isRightButton)
     setIsDrawing(true)
     setHasMoved(false)
@@ -744,9 +767,48 @@ export default function App() {
   }
 
   const handleContextMenu = (e) => {
-    // Prevent context menu when right-clicking on canvas
     e.preventDefault()
+    
+    // Only show context menu if there's an active selection
+    if (selection.size > 0 && (selectedTool === 'rectangleSelection' || selectedTool === 'lassoSelection')) {
+      setContextMenu({
+        isOpen: true,
+        x: e.clientX,
+        y: e.clientY
+      })
+    }
   }
+
+  const selectionContextMenuHandlers = useCallback(() => {
+    return createSelectionContextMenuHandlers({
+      selection,
+      framesEnabled,
+      activeFrameIndex,
+      activeLayerIndex,
+      frames,
+      layers,
+      nextLayerId,
+      nextFrameId,
+      gridWidth,
+      gridHeight,
+      setFrames,
+      setLayers,
+      setNextLayerId,
+      setNextFrameId,
+      setActiveLayerIndex,
+      setActiveFrameIndex,
+      setSelection,
+      handleSaveToHistory
+    })
+  }, [selection, framesEnabled, activeFrameIndex, activeLayerIndex, frames, layers, nextLayerId, nextFrameId, gridWidth, gridHeight, handleSaveToHistory])
+
+  const {
+    handleDeleteSelection,
+    handleSplitToLayer,
+    handleCopyToLayer,
+    handleSplitToFrame,
+    handleCopyToFrame
+  } = selectionContextMenuHandlers()
 
   const handleColorChange = (color) => {
     setCurrentColor(color)
@@ -879,6 +941,18 @@ export default function App() {
         isOpen={errorModal.isOpen}
         onClose={() => setErrorModal({ isOpen: false, message: '' })}
         message={errorModal.message}
+      />
+
+      <ContextMenu
+        isOpen={contextMenu.isOpen}
+        position={{ x: contextMenu.x, y: contextMenu.y }}
+        onClose={() => setContextMenu({ isOpen: false, x: 0, y: 0 })}
+        onDelete={handleDeleteSelection}
+        onSplitToLayer={handleSplitToLayer}
+        onCopyToLayer={handleCopyToLayer}
+        onSplitToFrame={handleSplitToFrame}
+        onCopyToFrame={handleCopyToFrame}
+        framesEnabled={framesEnabled}
       />
     </div>
   )
