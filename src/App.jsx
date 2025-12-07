@@ -380,6 +380,30 @@ export default function App() {
     setActiveFrameIndex(prev => prev + 1)
   }, [nextFrameId, layers])
 
+  const duplicateFrame = useCallback((index) => {
+    if (index < 0 || index >= frames.length) return
+    
+    const frameToDuplicate = frames[index]
+    const duplicatedLayerPixels = frameToDuplicate.layerPixels.map(layerPixels => 
+      JSON.parse(JSON.stringify(layerPixels))
+    )
+    
+    setFrames(prev => {
+      const newFrame = {
+        id: nextFrameId,
+        name: `Frame ${prev.length + 1}`,
+        layerPixels: duplicatedLayerPixels,
+        visible: frameToDuplicate.visible !== undefined ? frameToDuplicate.visible : true
+      }
+      setNextFrameId(prev => prev + 1)
+      const newFrames = [...prev]
+      newFrames.splice(index + 1, 0, newFrame)
+      return newFrames
+    })
+    
+    setActiveFrameIndex(index + 1)
+  }, [frames, nextFrameId])
+
   const deleteFrame = useCallback((index) => {
     if (frames.length <= 1) return
     
@@ -1101,6 +1125,7 @@ export default function App() {
             onFrameSelect={selectFrame}
             onFrameAdd={addFrame}
             onFrameDelete={deleteFrame}
+            onFrameDuplicate={duplicateFrame}
             onFrameToggleVisibility={toggleFrameVisibility}
             onFrameReorder={reorderFrame}
             fps={fps}
@@ -1136,6 +1161,7 @@ export default function App() {
         onFrameSelect={selectFrame}
         onFrameAdd={addFrame}
         onFrameDelete={deleteFrame}
+        onFrameDuplicate={duplicateFrame}
         onFrameToggleVisibility={toggleFrameVisibility}
         onFrameReorder={reorderFrame}
         fps={fps}
@@ -1159,12 +1185,15 @@ export default function App() {
         isOpen={contextMenu.isOpen}
         position={{ x: contextMenu.x, y: contextMenu.y }}
         onClose={() => setContextMenu({ isOpen: false, x: 0, y: 0 })}
-        onDelete={handleDeleteSelection}
-        onSplitToLayer={handleSplitToLayer}
-        onCopyToLayer={handleCopyToLayer}
-        onSplitToFrame={handleSplitToFrame}
-        onCopyToFrame={handleCopyToFrame}
-        framesEnabled={framesEnabled}
+        items={[
+          { label: 'Delete selected area', onClick: handleDeleteSelection },
+          { type: 'separator' },
+          { label: 'Split to another layer', onClick: handleSplitToLayer },
+          { label: 'Copy to another layer', onClick: handleCopyToLayer },
+          { type: 'separator' },
+          { label: 'Split to another frame', onClick: handleSplitToFrame, disabled: !framesEnabled },
+          { label: 'Copy to another frame', onClick: handleCopyToFrame, disabled: !framesEnabled }
+        ]}
       />
 
       {selectedTool === 'crop' && cropSelection && (

@@ -1,4 +1,5 @@
 import { useRef, useEffect, useState, useCallback } from 'react'
+import ContextMenu from './ContextMenu'
 
 const PREVIEW_SIZE = 80
 
@@ -231,6 +232,7 @@ export default function Frames({
   onFrameSelect,
   onFrameAdd,
   onFrameDelete,
+  onFrameDuplicate,
   onFrameToggleVisibility,
   onFrameReorder,
   fps,
@@ -243,6 +245,7 @@ export default function Frames({
   const isDraggingRef = useRef(false)
   const dragStartXRef = useRef(0)
   const scrollStartXRef = useRef(0)
+  const [frameContextMenu, setFrameContextMenu] = useState({ isOpen: false, x: 0, y: 0, frameIndex: null })
 
   const handleWheel = useCallback((e) => {
     if (scrollContainerRef.current) {
@@ -299,6 +302,47 @@ export default function Frames({
     }
   }, [onFrameSelect])
 
+  const handleFrameContextMenu = useCallback((index, e) => {
+    e.preventDefault()
+    setFrameContextMenu({
+      isOpen: true,
+      x: e.clientX,
+      y: e.clientY,
+      frameIndex: index
+    })
+  }, [])
+
+  const handleContextMenuClose = useCallback(() => {
+    setFrameContextMenu({ isOpen: false, x: 0, y: 0, frameIndex: null })
+  }, [])
+
+  const handleContextMenuDuplicate = useCallback(() => {
+    if (frameContextMenu.frameIndex !== null) {
+      onFrameDuplicate(frameContextMenu.frameIndex)
+    }
+  }, [frameContextMenu.frameIndex, onFrameDuplicate])
+
+  const handleContextMenuDelete = useCallback(() => {
+    if (frameContextMenu.frameIndex !== null && canDelete) {
+      onFrameDelete(frameContextMenu.frameIndex)
+    }
+  }, [frameContextMenu.frameIndex, canDelete, onFrameDelete])
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (frameContextMenu.isOpen) {
+        setFrameContextMenu({ isOpen: false, x: 0, y: 0, frameIndex: null })
+      }
+    }
+
+    if (frameContextMenu.isOpen) {
+      document.addEventListener('click', handleClickOutside)
+      return () => {
+        document.removeEventListener('click', handleClickOutside)
+      }
+    }
+  }, [frameContextMenu.isOpen])
+
   if (!framesEnabled) return null
 
   return (
@@ -317,13 +361,8 @@ export default function Frames({
             key={frame.id}
             className="flex-shrink-0 cursor-pointer"
             onClick={(e) => handleFrameClick(index, e)}
-            onContextMenu={(e) => {
-              e.preventDefault()
-              if (canDelete) {
-                onFrameDelete(index)
-              }
-            }}
-            title={canDelete ? 'Right-click to delete' : 'Cannot delete last frame'}
+            onContextMenu={(e) => handleFrameContextMenu(index, e)}
+            title="Right-click for options"
           >
             <FramePreview 
               layers={layers} 
@@ -346,6 +385,15 @@ export default function Frames({
           </svg>
         </button>
       </div>
+      <ContextMenu
+        isOpen={frameContextMenu.isOpen}
+        position={{ x: frameContextMenu.x, y: frameContextMenu.y }}
+        onClose={handleContextMenuClose}
+        items={[
+          { label: 'Duplicate', onClick: handleContextMenuDuplicate },
+          { label: 'Delete', onClick: handleContextMenuDelete, disabled: !canDelete }
+        ]}
+      />
     </div>
   )
 }
