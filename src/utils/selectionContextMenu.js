@@ -1,3 +1,19 @@
+// Helper function to normalize pixel array to correct size
+const normalizePixelArray = (pixels, gridWidth, gridHeight) => {
+  const targetSize = gridWidth * gridHeight
+  if (!pixels || pixels.length !== targetSize) {
+    const normalized = Array(targetSize).fill(null)
+    if (pixels) {
+      const copyLength = Math.min(pixels.length, targetSize)
+      for (let i = 0; i < copyLength; i++) {
+        normalized[i] = pixels[i] || null
+      }
+    }
+    return normalized
+  }
+  return [...pixels]
+}
+
 export const createSelectionContextMenuHandlers = ({ selection, framesEnabled, activeFrameIndex, activeLayerIndex, frames, layers, nextLayerId, nextFrameId, gridWidth, gridHeight, setFrames, setLayers, setNextLayerId, setNextFrameId, setActiveLayerIndex, setActiveFrameIndex, setSelection, handleSaveToHistory }) => {
   const handleDeleteSelection = () => {
     if (selection.size === 0) return
@@ -10,10 +26,13 @@ export const createSelectionContextMenuHandlers = ({ selection, framesEnabled, a
       if (!newLayerPixels[activeLayerIndex]) {
         newLayerPixels[activeLayerIndex] = Array(gridWidth * gridHeight).fill(null)
       }
-      const newPixels = [...newLayerPixels[activeLayerIndex]]
+      // Normalize pixel array to ensure correct size
+      const newPixels = normalizePixelArray(newLayerPixels[activeLayerIndex], gridWidth, gridHeight)
       
       selection.forEach(index => {
-        newPixels[index] = null
+        if (index >= 0 && index < newPixels.length) {
+          newPixels[index] = null
+        }
       })
       
       newLayerPixels[activeLayerIndex] = newPixels
@@ -33,7 +52,8 @@ export const createSelectionContextMenuHandlers = ({ selection, framesEnabled, a
     
     const frameIndex = framesEnabled ? activeFrameIndex : 0
     const currentFrame = frames[frameIndex]
-    const currentPixels = currentFrame.layerPixels[activeLayerIndex] || Array(gridWidth * gridHeight).fill(null)
+    // Normalize pixel array to ensure correct size
+    const currentPixels = normalizePixelArray(currentFrame.layerPixels[activeLayerIndex], gridWidth, gridHeight)
     
     const newLayer = {
       id: nextLayerId,
@@ -43,12 +63,16 @@ export const createSelectionContextMenuHandlers = ({ selection, framesEnabled, a
     
     const newLayerPixels = Array(gridWidth * gridHeight).fill(null)
     selection.forEach(index => {
-      newLayerPixels[index] = currentPixels[index]
+      if (index >= 0 && index < currentPixels.length && index < newLayerPixels.length) {
+        newLayerPixels[index] = currentPixels[index]
+      }
     })
     
     const updatedCurrentPixels = [...currentPixels]
     selection.forEach(index => {
-      updatedCurrentPixels[index] = null
+      if (index >= 0 && index < updatedCurrentPixels.length) {
+        updatedCurrentPixels[index] = null
+      }
     })
     
     setLayers(prev => [...prev, newLayer])
@@ -57,16 +81,22 @@ export const createSelectionContextMenuHandlers = ({ selection, framesEnabled, a
     setFrames(prev => prev.map((frame, idx) => {
       if (idx === frameIndex) {
         const newLayerPixelsArray = [...frame.layerPixels]
-        newLayerPixelsArray[activeLayerIndex] = updatedCurrentPixels
-        newLayerPixelsArray.push(newLayerPixels)
+        // Normalize arrays before operations
+        newLayerPixelsArray[activeLayerIndex] = normalizePixelArray(updatedCurrentPixels, gridWidth, gridHeight)
+        newLayerPixelsArray.push(normalizePixelArray(newLayerPixels, gridWidth, gridHeight))
         return {
           ...frame,
           layerPixels: newLayerPixelsArray
         }
       }
+      // Normalize existing arrays and add new normalized array
+      const normalizedLayerPixels = frame.layerPixels.map(pixels => 
+        normalizePixelArray(pixels, gridWidth, gridHeight)
+      )
+      normalizedLayerPixels.push(Array(gridWidth * gridHeight).fill(null))
       return {
         ...frame,
-        layerPixels: [...frame.layerPixels, Array(gridWidth * gridHeight).fill(null)]
+        layerPixels: normalizedLayerPixels
       }
     }))
     
@@ -80,7 +110,8 @@ export const createSelectionContextMenuHandlers = ({ selection, framesEnabled, a
     
     const frameIndex = framesEnabled ? activeFrameIndex : 0
     const currentFrame = frames[frameIndex]
-    const currentPixels = currentFrame.layerPixels[activeLayerIndex] || Array(gridWidth * gridHeight).fill(null)
+    // Normalize pixel array to ensure correct size
+    const currentPixels = normalizePixelArray(currentFrame.layerPixels[activeLayerIndex], gridWidth, gridHeight)
     
     const newLayer = {
       id: nextLayerId,
@@ -90,7 +121,9 @@ export const createSelectionContextMenuHandlers = ({ selection, framesEnabled, a
     
     const newLayerPixels = Array(gridWidth * gridHeight).fill(null)
     selection.forEach(index => {
-      newLayerPixels[index] = currentPixels[index]
+      if (index >= 0 && index < currentPixels.length && index < newLayerPixels.length) {
+        newLayerPixels[index] = currentPixels[index]
+      }
     })
     
     setLayers(prev => [...prev, newLayer])
@@ -99,15 +132,21 @@ export const createSelectionContextMenuHandlers = ({ selection, framesEnabled, a
     setFrames(prev => prev.map((frame, idx) => {
       if (idx === frameIndex) {
         const newLayerPixelsArray = [...frame.layerPixels]
-        newLayerPixelsArray.push(newLayerPixels)
+        // Normalize arrays before operations
+        newLayerPixelsArray.push(normalizePixelArray(newLayerPixels, gridWidth, gridHeight))
         return {
           ...frame,
           layerPixels: newLayerPixelsArray
         }
       }
+      // Normalize existing arrays and add new normalized array
+      const normalizedLayerPixels = frame.layerPixels.map(pixels => 
+        normalizePixelArray(pixels, gridWidth, gridHeight)
+      )
+      normalizedLayerPixels.push(Array(gridWidth * gridHeight).fill(null))
       return {
         ...frame,
-        layerPixels: [...frame.layerPixels, Array(gridWidth * gridHeight).fill(null)]
+        layerPixels: normalizedLayerPixels
       }
     }))
     
@@ -120,16 +159,21 @@ export const createSelectionContextMenuHandlers = ({ selection, framesEnabled, a
     
     const frameIndex = framesEnabled ? activeFrameIndex : 0
     const currentFrame = frames[frameIndex]
-    const currentPixels = currentFrame.layerPixels[activeLayerIndex] || Array(gridWidth * gridHeight).fill(null)
+    // Normalize pixel array to ensure correct size
+    const currentPixels = normalizePixelArray(currentFrame.layerPixels[activeLayerIndex], gridWidth, gridHeight)
     
     const newFramePixels = Array(gridWidth * gridHeight).fill(null)
     selection.forEach(index => {
-      newFramePixels[index] = currentPixels[index]
+      if (index >= 0 && index < currentPixels.length && index < newFramePixels.length) {
+        newFramePixels[index] = currentPixels[index]
+      }
     })
     
     const updatedCurrentPixels = [...currentPixels]
     selection.forEach(index => {
-      updatedCurrentPixels[index] = null
+      if (index >= 0 && index < updatedCurrentPixels.length) {
+        updatedCurrentPixels[index] = null
+      }
     })
     
     const newFrame = {
@@ -139,7 +183,8 @@ export const createSelectionContextMenuHandlers = ({ selection, framesEnabled, a
         if (layerIdx === activeLayerIndex) {
           return newFramePixels
         }
-        return Array(gridWidth * gridHeight).fill(null)
+        // Normalize existing layer pixels or create new array
+        return normalizePixelArray(layerPixels, gridWidth, gridHeight)
       }),
       visible: true
     }
@@ -147,7 +192,14 @@ export const createSelectionContextMenuHandlers = ({ selection, framesEnabled, a
     setFrames(prev => {
       const newFrames = [...prev]
       const updatedLayerPixels = [...newFrames[frameIndex].layerPixels]
-      updatedLayerPixels[activeLayerIndex] = updatedCurrentPixels
+      // Ensure all layer pixel arrays are normalized
+      updatedLayerPixels[activeLayerIndex] = normalizePixelArray(updatedCurrentPixels, gridWidth, gridHeight)
+      // Normalize all other layer pixel arrays
+      for (let i = 0; i < updatedLayerPixels.length; i++) {
+        if (i !== activeLayerIndex) {
+          updatedLayerPixels[i] = normalizePixelArray(updatedLayerPixels[i], gridWidth, gridHeight)
+        }
+      }
       newFrames[frameIndex] = {
         ...newFrames[frameIndex],
         layerPixels: updatedLayerPixels
@@ -167,11 +219,14 @@ export const createSelectionContextMenuHandlers = ({ selection, framesEnabled, a
     
     const frameIndex = framesEnabled ? activeFrameIndex : 0
     const currentFrame = frames[frameIndex]
-    const currentPixels = currentFrame.layerPixels[activeLayerIndex] || Array(gridWidth * gridHeight).fill(null)
+    // Normalize pixel array to ensure correct size
+    const currentPixels = normalizePixelArray(currentFrame.layerPixels[activeLayerIndex], gridWidth, gridHeight)
     
     const newFramePixels = Array(gridWidth * gridHeight).fill(null)
     selection.forEach(index => {
-      newFramePixels[index] = currentPixels[index]
+      if (index >= 0 && index < currentPixels.length && index < newFramePixels.length) {
+        newFramePixels[index] = currentPixels[index]
+      }
     })
     
     const newFrame = {
@@ -181,7 +236,8 @@ export const createSelectionContextMenuHandlers = ({ selection, framesEnabled, a
         if (layerIdx === activeLayerIndex) {
           return newFramePixels
         }
-        return Array(gridWidth * gridHeight).fill(null)
+        // Normalize existing layer pixels or create new array
+        return normalizePixelArray(layerPixels, gridWidth, gridHeight)
       }),
       visible: true
     }

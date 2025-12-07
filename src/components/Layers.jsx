@@ -24,23 +24,42 @@ function LayerPreview({ pixels, visible, gridWidth, gridHeight }) {
     for (let row = 0; row < gridHeight; row++) {
       for (let col = 0; col < gridWidth; col++) {
         if ((row + col) % 2 === 0) {
-          ctx.fillRect(col * cellSizeX, row * cellSizeY, cellSizeX, cellSizeY)
+          // Use Math.floor to prevent overlap from fractional sizes
+          const x = Math.floor(col * cellSizeX)
+          const y = Math.floor(row * cellSizeY)
+          const width = col === gridWidth - 1 
+            ? PREVIEW_SIZE - x
+            : Math.floor((col + 1) * cellSizeX) - x
+          const height = row === gridHeight - 1
+            ? PREVIEW_SIZE - y
+            : Math.floor((row + 1) * cellSizeY) - y
+          ctx.fillRect(x, y, width, height)
         }
       }
     }
 
     if (!pixels) return
 
-    pixels.forEach((color, index) => {
+    // Ensure we only process valid indices
+    const maxIndex = Math.min(pixels.length, gridWidth * gridHeight)
+    for (let index = 0; index < maxIndex; index++) {
+      const color = pixels[index]
       if (color) {
         const row = Math.floor(index / gridWidth)
         const col = index % gridWidth
-        const x = col * cellSizeX
-        const y = row * cellSizeY
+        // Use Math.floor to prevent overlap from fractional sizes
+        const x = Math.floor(col * cellSizeX)
+        const y = Math.floor(row * cellSizeY)
+        const width = col === gridWidth - 1 
+          ? PREVIEW_SIZE - x
+          : Math.floor((col + 1) * cellSizeX) - x
+        const height = row === gridHeight - 1
+          ? PREVIEW_SIZE - y
+          : Math.floor((row + 1) * cellSizeY) - y
         ctx.fillStyle = color
-        ctx.fillRect(x, y, cellSizeX, cellSizeY)
+        ctx.fillRect(x, y, width, height)
       }
-    })
+    }
   }, [pixels, gridWidth, gridHeight])
 
   return (

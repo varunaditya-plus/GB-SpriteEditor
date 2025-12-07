@@ -72,23 +72,50 @@ export default function App() {
     height: baseCanvasHeight 
   })
 
+  // Helper function to normalize pixel array to correct size
+  const normalizePixelArray = useCallback((pixels, targetWidth, targetHeight) => {
+    const targetSize = targetWidth * targetHeight
+    if (!pixels || pixels.length !== targetSize) {
+      const normalized = Array(targetSize).fill(null)
+      if (pixels) {
+        const copyLength = Math.min(pixels.length, targetSize)
+        for (let i = 0; i < copyLength; i++) {
+          normalized[i] = pixels[i] || null
+        }
+      }
+      return normalized
+    }
+    return [...pixels]
+  }, [])
+
   const getCurrentLayers = useCallback(() => {
     if (framesEnabled) {
       const frame = frames[activeFrameIndex]
       if (!frame) return []
       return layers.map((layer, index) => ({
         ...layer,
-        pixels: frame.layerPixels && frame.layerPixels[index] ? frame.layerPixels[index] : Array(gridWidth * gridHeight).fill(null)
+        pixels: normalizePixelArray(
+          frame.layerPixels && frame.layerPixels[index] ? frame.layerPixels[index] : null,
+          gridWidth,
+          gridHeight
+        )
       }))
     } else {
       const frame = frames[0]
-      if (!frame) return layers.map(layer => ({ ...layer, pixels: Array(gridWidth * gridHeight).fill(null) }))
+      if (!frame) return layers.map(layer => ({ 
+        ...layer, 
+        pixels: normalizePixelArray(null, gridWidth, gridHeight)
+      }))
       return layers.map((layer, index) => ({
         ...layer,
-        pixels: frame.layerPixels && frame.layerPixels[index] ? frame.layerPixels[index] : Array(gridWidth * gridHeight).fill(null)
+        pixels: normalizePixelArray(
+          frame.layerPixels && frame.layerPixels[index] ? frame.layerPixels[index] : null,
+          gridWidth,
+          gridHeight
+        )
       }))
     }
-  }, [framesEnabled, frames, activeFrameIndex, layers, gridWidth, gridHeight])
+  }, [framesEnabled, frames, activeFrameIndex, layers, gridWidth, gridHeight, normalizePixelArray])
 
   const currentLayers = getCurrentLayers()
   const pixels = currentLayers[activeLayerIndex]?.pixels || []
@@ -185,11 +212,14 @@ export default function App() {
       const newFrames = [...prev]
       const frame = newFrames[frameIndex]
       const newLayerPixels = [...frame.layerPixels]
+      // Normalize pixel array to ensure correct size
       if (!newLayerPixels[activeLayerIndex]) {
         newLayerPixels[activeLayerIndex] = Array(gridWidth * gridHeight).fill(null)
       }
-      const newPixels = [...newLayerPixels[activeLayerIndex]]
-      newPixels[index] = color
+      const newPixels = normalizePixelArray(newLayerPixels[activeLayerIndex], gridWidth, gridHeight)
+      if (index >= 0 && index < newPixels.length) {
+        newPixels[index] = color
+      }
       newLayerPixels[activeLayerIndex] = newPixels
       newFrames[frameIndex] = {
         ...frame,
@@ -197,7 +227,7 @@ export default function App() {
       }
       return newFrames
     })
-  }, [activeLayerIndex, framesEnabled, activeFrameIndex])
+  }, [activeLayerIndex, framesEnabled, activeFrameIndex, gridWidth, gridHeight, normalizePixelArray])
 
   const handleSaveToHistory = useCallback(() => {
     const stateToSave = { layers, frames }
@@ -608,7 +638,8 @@ export default function App() {
           const newFrames = [...prev]
           const frame = newFrames[frameIndex]
           const newLayerPixels = [...frame.layerPixels]
-          newLayerPixels[activeLayerIndex] = newPixels
+          // Normalize pixel array to ensure correct size
+          newLayerPixels[activeLayerIndex] = normalizePixelArray(newPixels, gridWidth, gridHeight)
           newFrames[frameIndex] = {
             ...frame,
             layerPixels: newLayerPixels
@@ -664,7 +695,8 @@ export default function App() {
           const newFrames = [...prev]
           const frame = newFrames[frameIndex]
           const newLayerPixels = [...frame.layerPixels]
-          newLayerPixels[activeLayerIndex] = newPixels
+          // Normalize pixel array to ensure correct size
+          newLayerPixels[activeLayerIndex] = normalizePixelArray(newPixels, gridWidth, gridHeight)
           newFrames[frameIndex] = {
             ...frame,
             layerPixels: newLayerPixels
@@ -746,7 +778,8 @@ export default function App() {
           const newFrames = [...prev]
           const frame = newFrames[frameIndex]
           const newLayerPixels = [...frame.layerPixels]
-          newLayerPixels[activeLayerIndex] = newPixels
+          // Normalize pixel array to ensure correct size
+          newLayerPixels[activeLayerIndex] = normalizePixelArray(newPixels, gridWidth, gridHeight)
           newFrames[frameIndex] = {
             ...frame,
             layerPixels: newLayerPixels

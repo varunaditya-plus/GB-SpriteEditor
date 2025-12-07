@@ -53,10 +53,20 @@ export const drawCanvas = (canvas, canvasWidth, canvasHeight, gridWidth, gridHei
     if (color) {
       const row = Math.floor(index / gridWidth)
       const col = index % gridWidth
-      const x = col * cellSizeX
-      const y = row * cellSizeY
+      // Calculate pixel position accounting for grid line offset (0.5)
+      // Ensure pixels don't overlap by using Math.floor and proper boundaries
+      const x = Math.floor(col * cellSizeX) + 0.5
+      const y = Math.floor(row * cellSizeY) + 0.5
+      // Calculate cell dimensions that fit within boundaries
+      // For the last column/row, use remaining space to avoid overflow
+      const width = col === gridWidth - 1 
+        ? Math.floor(canvasWidth - x) - 0.5
+        : Math.floor((col + 1) * cellSizeX) - x - 0.5
+      const height = row === gridHeight - 1
+        ? Math.floor(canvasHeight - y) - 0.5
+        : Math.floor((row + 1) * cellSizeY) - y - 0.5
       ctx.fillStyle = color
-      ctx.fillRect(x, y, cellSizeX, cellSizeY)
+      ctx.fillRect(x, y, width, height)
     }
   })
 
@@ -68,11 +78,19 @@ export const drawCanvas = (canvas, canvasWidth, canvasHeight, gridWidth, gridHei
     selection.forEach((index) => {
       const row = Math.floor(index / gridWidth)
       const col = index % gridWidth
-      const x = col * cellSizeX
-      const y = row * cellSizeY
+      // Calculate selection position accounting for grid line offset (0.5)
+      const x = Math.floor(col * cellSizeX) + 0.5
+      const y = Math.floor(row * cellSizeY) + 0.5
+      // Calculate cell dimensions that fit within boundaries
+      const width = col === gridWidth - 1 
+        ? Math.floor(canvasWidth - x) - 0.5
+        : Math.floor((col + 1) * cellSizeX) - x - 0.5
+      const height = row === gridHeight - 1
+        ? Math.floor(canvasHeight - y) - 0.5
+        : Math.floor((row + 1) * cellSizeY) - y - 0.5
 
-      ctx.fillRect(x, y, cellSizeX, cellSizeY)
-      ctx.strokeRect(x + 0.5, y + 0.5, cellSizeX - 1, cellSizeY - 1)
+      ctx.fillRect(x, y, width, height)
+      ctx.strokeRect(x, y, width, height)
     })
   }
 }

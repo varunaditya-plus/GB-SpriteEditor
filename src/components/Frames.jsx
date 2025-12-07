@@ -24,7 +24,16 @@ function FramePreview({ layers, layerPixels, visible, isActive, gridWidth, gridH
     for (let row = 0; row < gridHeight; row++) {
       for (let col = 0; col < gridWidth; col++) {
         if ((row + col) % 2 === 0) {
-          ctx.fillRect(col * cellSizeX, row * cellSizeY, cellSizeX, cellSizeY)
+          // Use Math.floor to prevent overlap from fractional sizes
+          const x = Math.floor(col * cellSizeX)
+          const y = Math.floor(row * cellSizeY)
+          const width = col === gridWidth - 1 
+            ? PREVIEW_SIZE - x
+            : Math.floor((col + 1) * cellSizeX) - x
+          const height = row === gridHeight - 1
+            ? PREVIEW_SIZE - y
+            : Math.floor((row + 1) * cellSizeY) - y
+          ctx.fillRect(x, y, width, height)
         }
       }
     }
@@ -33,22 +42,32 @@ function FramePreview({ layers, layerPixels, visible, isActive, gridWidth, gridH
     
     layers.forEach((layer, layerIndex) => {
       if (layer.visible && layerPixels[layerIndex]) {
-        layerPixels[layerIndex].forEach((color, index) => {
-          if (color) {
-            compositePixels[index] = color
+        // Ensure we only process valid indices
+        const pixelArray = layerPixels[layerIndex]
+        const maxIndex = Math.min(pixelArray.length, gridWidth * gridHeight)
+        for (let i = 0; i < maxIndex; i++) {
+          if (pixelArray[i]) {
+            compositePixels[i] = pixelArray[i]
           }
-        })
+        }
       }
     })
 
     compositePixels.forEach((color, index) => {
-      if (color) {
+      if (color && index < gridWidth * gridHeight) {
         const row = Math.floor(index / gridWidth)
         const col = index % gridWidth
-        const x = col * cellSizeX
-        const y = row * cellSizeY
+        // Use Math.floor to prevent overlap from fractional sizes
+        const x = Math.floor(col * cellSizeX)
+        const y = Math.floor(row * cellSizeY)
+        const width = col === gridWidth - 1 
+          ? PREVIEW_SIZE - x
+          : Math.floor((col + 1) * cellSizeX) - x
+        const height = row === gridHeight - 1
+          ? PREVIEW_SIZE - y
+          : Math.floor((row + 1) * cellSizeY) - y
         ctx.fillStyle = color
-        ctx.fillRect(x, y, cellSizeX, cellSizeY)
+        ctx.fillRect(x, y, width, height)
       }
     })
   }, [layers, layerPixels, gridWidth, gridHeight])
@@ -124,22 +143,32 @@ export function AnimationPreview({ frames, layers, fps, onFpsChange, gridWidth, 
       
       layers.forEach((layer, layerIndex) => {
         if (layer.visible && currentFrame.layerPixels[layerIndex]) {
-          currentFrame.layerPixels[layerIndex].forEach((color, index) => {
-            if (color) {
-              compositePixels[index] = color
+          // Ensure we only process valid indices
+          const pixelArray = currentFrame.layerPixels[layerIndex]
+          const maxIndex = Math.min(pixelArray.length, gridWidth * gridHeight)
+          for (let i = 0; i < maxIndex; i++) {
+            if (pixelArray[i]) {
+              compositePixels[i] = pixelArray[i]
             }
-          })
+          }
         }
       })
 
       compositePixels.forEach((color, index) => {
-        if (color) {
+        if (color && index < gridWidth * gridHeight) {
           const row = Math.floor(index / gridWidth)
           const col = index % gridWidth
-          const x = col * previewCellSizeX
-          const y = row * previewCellSizeY
+          // Use Math.floor to prevent overlap from fractional sizes
+          const x = Math.floor(col * previewCellSizeX)
+          const y = Math.floor(row * previewCellSizeY)
+          const width = col === gridWidth - 1 
+            ? previewSize - x
+            : Math.floor((col + 1) * previewCellSizeX) - x
+          const height = row === gridHeight - 1
+            ? previewSize - y
+            : Math.floor((row + 1) * previewCellSizeY) - y
           ctx.fillStyle = color
-          ctx.fillRect(x, y, previewCellSizeX, previewCellSizeY)
+          ctx.fillRect(x, y, width, height)
         }
       })
     }
