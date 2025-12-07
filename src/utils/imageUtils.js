@@ -76,10 +76,6 @@ export const loadGifFrames = async (file) => {
         const numFrames = gifReader.numFrames()
         
         const frames = []
-        const canvas = document.createElement('canvas')
-        const ctx = canvas.getContext('2d')
-        canvas.width = imageWidth
-        canvas.height = imageHeight
         
         // Create a canvas to composite frames
         const compositeCanvas = document.createElement('canvas')
@@ -170,7 +166,6 @@ export const pixelsToCCode = (pixels, gridWidth, gridHeight) => {
   }
   
   // Calculate tile count (each tile is 8x8, so we need to calculate how many tiles fit)
-  // For simplicity, we'll use the total number of pixels / 64 (8x8) rounded up
   const tileCount = Math.ceil((gridWidth * gridHeight) / 64)
   
   // Generate .c file

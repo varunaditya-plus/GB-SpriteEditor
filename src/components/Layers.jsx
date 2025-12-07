@@ -1,9 +1,8 @@
 import { useRef, useEffect } from 'react'
 
-const GRID_SIZE = 32
 const PREVIEW_SIZE = 32
 
-function LayerPreview({ pixels, visible }) {
+function LayerPreview({ pixels, visible, gridWidth, gridHeight }) {
   const canvasRef = useRef(null)
 
   useEffect(() => {
@@ -13,7 +12,8 @@ function LayerPreview({ pixels, visible }) {
     const ctx = canvas.getContext('2d')
     if (!ctx) return
 
-    const cellSize = PREVIEW_SIZE / GRID_SIZE
+    const cellSizeX = PREVIEW_SIZE / gridWidth
+    const cellSizeY = PREVIEW_SIZE / gridHeight
 
     ctx.clearRect(0, 0, PREVIEW_SIZE, PREVIEW_SIZE)
     
@@ -21,10 +21,10 @@ function LayerPreview({ pixels, visible }) {
     ctx.fillRect(0, 0, PREVIEW_SIZE, PREVIEW_SIZE)
 
     ctx.fillStyle = '#1f1f1f'
-    for (let row = 0; row < GRID_SIZE; row++) {
-      for (let col = 0; col < GRID_SIZE; col++) {
+    for (let row = 0; row < gridHeight; row++) {
+      for (let col = 0; col < gridWidth; col++) {
         if ((row + col) % 2 === 0) {
-          ctx.fillRect(col * cellSize, row * cellSize, cellSize, cellSize)
+          ctx.fillRect(col * cellSizeX, row * cellSizeY, cellSizeX, cellSizeY)
         }
       }
     }
@@ -33,15 +33,15 @@ function LayerPreview({ pixels, visible }) {
 
     pixels.forEach((color, index) => {
       if (color) {
-        const row = Math.floor(index / GRID_SIZE)
-        const col = index % GRID_SIZE
-        const x = col * cellSize
-        const y = row * cellSize
+        const row = Math.floor(index / gridWidth)
+        const col = index % gridWidth
+        const x = col * cellSizeX
+        const y = row * cellSizeY
         ctx.fillStyle = color
-        ctx.fillRect(x, y, cellSize, cellSize)
+        ctx.fillRect(x, y, cellSizeX, cellSizeY)
       }
     })
-  }, [pixels])
+  }, [pixels, gridWidth, gridHeight])
 
   return (
     <div className="relative flex-shrink-0">
@@ -70,7 +70,9 @@ export default function Layers({
   onLayerAdd,
   onLayerDelete,
   onLayerToggleVisibility,
-  onLayerReorder
+  onLayerReorder,
+  gridWidth,
+  gridHeight
 }) {
   const canDelete = layers.length > 1
 
@@ -106,7 +108,7 @@ export default function Layers({
               className="cursor-pointer"
               title={layer.visible ? 'Hide layer' : 'Show layer'}
             >
-              <LayerPreview pixels={layer.pixels} visible={layer.visible} />
+              <LayerPreview pixels={layer.pixels} visible={layer.visible} gridWidth={gridWidth} gridHeight={gridHeight} />
             </div>
 
             <div className="flex-1 text-xs text-neutral-300 truncate">

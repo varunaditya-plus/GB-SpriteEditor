@@ -1,7 +1,6 @@
 import { useRef, useEffect, useState, useCallback } from 'react'
 
 const PREVIEW_SIZE = 80
-const PREVIEW_CANVAS_SIZE = 128
 
 function FramePreview({ layers, layerPixels, visible, isActive, gridWidth, gridHeight }) {
   const canvasRef = useRef(null)
@@ -74,7 +73,7 @@ function FramePreview({ layers, layerPixels, visible, isActive, gridWidth, gridH
   )
 }
 
-export function AnimationPreview({ frames, layers, fps, onFpsChange, gridWidth, gridHeight, cellSize, canvasWidth, canvasHeight }) {
+export function AnimationPreview({ frames, layers, fps, onFpsChange, gridWidth, gridHeight }) {
   const canvasRef = useRef(null)
   const [currentFrameIndex, setCurrentFrameIndex] = useState(0)
   const animationRef = useRef(null)
@@ -100,9 +99,6 @@ export function AnimationPreview({ frames, layers, fps, onFpsChange, gridWidth, 
 
     const currentFrame = frames[currentFrameIndex]
     if (currentFrame) {
-      const ctx = canvas.getContext('2d')
-      if (!ctx) return
-
       ctx.clearRect(0, 0, previewSize, previewSize)
       ctx.fillStyle = '#171717'
       ctx.fillRect(0, 0, previewSize, previewSize)
@@ -211,10 +207,7 @@ export default function Frames({
   fps,
   onFpsChange,
   gridWidth,
-  gridHeight,
-  cellSize,
-  canvasWidth,
-  canvasHeight
+  gridHeight
 }) {
   const canDelete = frames.length > 1
   const scrollContainerRef = useRef(null)

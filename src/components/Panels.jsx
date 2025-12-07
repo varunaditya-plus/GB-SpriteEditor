@@ -35,9 +35,6 @@ export default function Panels({
   onFpsChange,
   gridWidth,
   gridHeight,
-  cellSize,
-  canvasWidth,
-  canvasHeight,
   onFileUpload,
   onExport,
   onGridSizeChange,
@@ -132,6 +129,8 @@ export default function Panels({
         onLayerDelete={onLayerDelete}
         onLayerToggleVisibility={onLayerToggleVisibility}
         onLayerReorder={onLayerReorder}
+        gridWidth={gridWidth}
+        gridHeight={gridHeight}
       />
 
       <div className="flex flex-col gap-2 pt-2 border-t border-neutral-700">
@@ -163,14 +162,11 @@ export default function Panels({
             onFpsChange={onFpsChange}
             gridWidth={gridWidth}
             gridHeight={gridHeight}
-            cellSize={cellSize}
-            canvasWidth={canvasWidth}
-            canvasHeight={canvasHeight}
           />
         )}
       </div>
 
-      <div className="flex flex-col gap-2 pt-2 border-t border-neutral-700 mt-auto">
+      <div className="flex flex-col gap-2 pt-2 mt-auto">
         <button
           onClick={() => setIsPropertiesModalOpen(true)}
           className="w-full px-3 py-2 bg-neutral-700 hover:bg-neutral-600 rounded text-sm text-neutral-200 transition-colors"

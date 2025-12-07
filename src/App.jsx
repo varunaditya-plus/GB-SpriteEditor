@@ -425,9 +425,8 @@ export default function App() {
           img.src = URL.createObjectURL(file)
         })
         
-        let imageDimensions
         try {
-          imageDimensions = await imageLoadPromise
+          await imageLoadPromise
           URL.revokeObjectURL(img.src)
         } catch (error) {
           URL.revokeObjectURL(img.src)
@@ -834,9 +833,6 @@ export default function App() {
             onFpsChange={setFps}
             gridWidth={gridWidth}
             gridHeight={gridHeight}
-            cellSize={CELL_SIZE}
-            canvasWidth={baseCanvasWidth}
-            canvasHeight={baseCanvasHeight}
           />
         )}
       </div>
@@ -872,9 +868,6 @@ export default function App() {
         onFpsChange={setFps}
         gridWidth={gridWidth}
         gridHeight={gridHeight}
-        cellSize={CELL_SIZE}
-        canvasWidth={baseCanvasWidth}
-        canvasHeight={baseCanvasHeight}
         onFileUpload={handleFileUpload}
         onExport={handleExport}
         onGridSizeChange={handleGridSizeChange}

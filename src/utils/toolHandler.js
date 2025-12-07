@@ -163,13 +163,13 @@ export const handleToolMouseMove = ({
     case 'rectangle':
       if (startPoint !== null && originalPixels !== null) {
         setPixels([...originalPixels])
-        handleRectangleMove(index, startPoint, currentColor, strokeWidth, gridWidth, gridHeight, setPixels, originalPixels, false)
+        handleRectangleMove(index, startPoint, currentColor, strokeWidth, gridWidth, gridHeight, setPixels, originalPixels)
       }
       break
     case 'circle':
       if (startPoint !== null && originalPixels !== null) {
         setPixels([...originalPixels])
-        handleCircleMove(index, startPoint, currentColor, strokeWidth, gridWidth, gridHeight, setPixels, originalPixels, false)
+        handleCircleMove(index, startPoint, currentColor, strokeWidth, gridWidth, gridHeight, setPixels, originalPixels)
       }
       break
     case 'rectangleSelection':
@@ -246,7 +246,7 @@ export const handleToolMouseUp = ({
       break
     case 'rectangle':
       if (startPoint !== null && originalPixels !== null && index !== null) {
-        handleRectangleUp(index, startPoint, currentColor, strokeWidth, gridWidth, gridHeight, setPixels, originalPixels, setStartPoint, false)
+        handleRectangleUp(index, startPoint, currentColor, strokeWidth, gridWidth, gridHeight, setPixels, originalPixels, setStartPoint)
       } else if (startPoint !== null) {
         setPixels([...originalPixels])
         setStartPoint(null)
@@ -254,7 +254,7 @@ export const handleToolMouseUp = ({
       break
     case 'circle':
       if (startPoint !== null && originalPixels !== null && index !== null) {
-        handleCircleUp(index, startPoint, currentColor, strokeWidth, gridWidth, gridHeight, setPixels, originalPixels, setStartPoint, false)
+        handleCircleUp(index, startPoint, currentColor, strokeWidth, gridWidth, gridHeight, setPixels, originalPixels, setStartPoint)
       } else if (startPoint !== null) {
         setPixels([...originalPixels])
         setStartPoint(null)

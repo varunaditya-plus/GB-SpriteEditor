@@ -23,7 +23,7 @@ const drawPixelWithStroke = (x, y, color, strokeWidth, gridWidth, gridHeight, ne
   }
 }
 
-export const drawRectangle = (startIndex, endIndex, color, strokeWidth, gridWidth, gridHeight, setPixels, originalPixels, filled = false) => {
+export const drawRectangle = (startIndex, endIndex, color, strokeWidth, gridWidth, gridHeight, setPixels, originalPixels) => {
   if (startIndex === null || endIndex === null) return
 
   const startRow = Math.floor(startIndex / gridWidth)
@@ -38,26 +38,13 @@ export const drawRectangle = (startIndex, endIndex, color, strokeWidth, gridWidt
   const minCol = Math.min(startCol, endCol)
   const maxCol = Math.max(startCol, endCol)
 
-  if (filled) {
-    for (let row = minRow; row <= maxRow; row++) {
-      for (let col = minCol; col <= maxCol; col++) {
-        if (row >= 0 && row < gridHeight && col >= 0 && col < gridWidth) {
-          const index = row * gridWidth + col
-          if (index >= 0 && index < newPixels.length) {
-            newPixels[index] = color
-          }
-        }
-      }
-    }
-  } else {
-    for (let col = minCol; col <= maxCol; col++) {
-      drawPixelWithStroke(col, minRow, color, strokeWidth, gridWidth, gridHeight, newPixels)
-      drawPixelWithStroke(col, maxRow, color, strokeWidth, gridWidth, gridHeight, newPixels)
-    }
-    for (let row = minRow; row <= maxRow; row++) {
-      drawPixelWithStroke(minCol, row, color, strokeWidth, gridWidth, gridHeight, newPixels)
-      drawPixelWithStroke(maxCol, row, color, strokeWidth, gridWidth, gridHeight, newPixels)
-    }
+  for (let col = minCol; col <= maxCol; col++) {
+    drawPixelWithStroke(col, minRow, color, strokeWidth, gridWidth, gridHeight, newPixels)
+    drawPixelWithStroke(col, maxRow, color, strokeWidth, gridWidth, gridHeight, newPixels)
+  }
+  for (let row = minRow; row <= maxRow; row++) {
+    drawPixelWithStroke(minCol, row, color, strokeWidth, gridWidth, gridHeight, newPixels)
+    drawPixelWithStroke(maxCol, row, color, strokeWidth, gridWidth, gridHeight, newPixels)
   }
 
   setPixels(newPixels)
@@ -69,15 +56,15 @@ export const handleRectangleDown = (index, color, gridWidth, gridHeight, setStar
   }
 }
 
-export const handleRectangleMove = (index, startIndex, color, strokeWidth, gridWidth, gridHeight, setPixels, originalPixels, filled = false) => {
+export const handleRectangleMove = (index, startIndex, color, strokeWidth, gridWidth, gridHeight, setPixels, originalPixels) => {
   if (startIndex !== null && index !== null) {
-    drawRectangle(startIndex, index, color, strokeWidth, gridWidth, gridHeight, setPixels, originalPixels, filled)
+    drawRectangle(startIndex, index, color, strokeWidth, gridWidth, gridHeight, setPixels, originalPixels)
   }
 }
 
-export const handleRectangleUp = (index, startIndex, color, strokeWidth, gridWidth, gridHeight, setPixels, originalPixels, setStartPoint, filled = false) => {
+export const handleRectangleUp = (index, startIndex, color, strokeWidth, gridWidth, gridHeight, setPixels, originalPixels, setStartPoint) => {
   if (startIndex !== null && index !== null) {
-    drawRectangle(startIndex, index, color, strokeWidth, gridWidth, gridHeight, setPixels, originalPixels, filled)
+    drawRectangle(startIndex, index, color, strokeWidth, gridWidth, gridHeight, setPixels, originalPixels)
   }
   setStartPoint(null)
 }
