@@ -25,22 +25,22 @@ const eraseWithOpacity = (existingColor, opacity) => {
   return rgbToHex(r, g, b)
 }
 
-const getBrushPixels = (centerIndex, brushThickness, gridSize) => {
+const getBrushPixels = (centerIndex, brushThickness, gridWidth, gridHeight) => {
   if (brushThickness === 1) {
     return [centerIndex]
   }
   
-  const centerRow = Math.floor(centerIndex / gridSize)
-  const centerCol = centerIndex % gridSize
+  const centerRow = Math.floor(centerIndex / gridWidth)
+  const centerCol = centerIndex % gridWidth
   const radius = Math.floor(brushThickness / 2)
   const pixels = []
   
   for (let row = centerRow - radius; row <= centerRow + radius; row++) {
     for (let col = centerCol - radius; col <= centerCol + radius; col++) {
       const distance = Math.sqrt((row - centerRow) ** 2 + (col - centerCol) ** 2)
-      if (distance <= radius && row >= 0 && row < gridSize && col >= 0 && col < gridSize) {
-        const index = row * gridSize + col
-        if (index >= 0 && index < gridSize * gridSize) {
+      if (distance <= radius && row >= 0 && row < gridHeight && col >= 0 && col < gridWidth) {
+        const index = row * gridWidth + col
+        if (index >= 0 && index < gridWidth * gridHeight) {
           pixels.push(index)
         }
       }
@@ -50,9 +50,9 @@ const getBrushPixels = (centerIndex, brushThickness, gridSize) => {
   return pixels
 }
 
-export const handleEraserDown = (index, brushThickness, brushOpacity, gridSize, pixels, setPixel) => {
+export const handleEraserDown = (index, brushThickness, brushOpacity, gridWidth, gridHeight, pixels, setPixel) => {
   if (index !== null && index >= 0) {
-    const brushPixels = getBrushPixels(index, brushThickness, gridSize)
+    const brushPixels = getBrushPixels(index, brushThickness, gridWidth, gridHeight)
     brushPixels.forEach(pixelIndex => {
       if (brushOpacity === 10) {
         setPixel(pixelIndex, null)
@@ -65,9 +65,9 @@ export const handleEraserDown = (index, brushThickness, brushOpacity, gridSize, 
   }
 }
 
-export const handleEraserMove = (index, brushThickness, brushOpacity, gridSize, pixels, setPixel) => {
+export const handleEraserMove = (index, brushThickness, brushOpacity, gridWidth, gridHeight, pixels, setPixel) => {
   if (index !== null && index >= 0) {
-    const brushPixels = getBrushPixels(index, brushThickness, gridSize)
+    const brushPixels = getBrushPixels(index, brushThickness, gridWidth, gridHeight)
     brushPixels.forEach(pixelIndex => {
       if (brushOpacity === 10) {
         setPixel(pixelIndex, null)

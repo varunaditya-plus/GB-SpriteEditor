@@ -1,14 +1,23 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import Panels from './components/Panels'
 import Frames from './components/Frames'
+import PropertiesModal from './components/PropertiesModal'
+import ErrorModal from './components/ErrorModal'
 import { handleToolMouseDown, handleToolMouseMove, handleToolMouseUp, checkHoveringSelection } from './utils/toolHandler'
 import { initializeCanvas, drawCanvas, getPixelIndex as getPixelIndexUtil } from './utils/canvas'
 import { createHistory, saveToHistory, undo, redo, canUndo, canRedo } from './utils/history'
+import { loadImageToPixels, loadGifFrames, pixelsToCCode } from './utils/imageUtils'
 
-const GRID_SIZE = 32
+const DEFAULT_GRID_WIDTH = 32
+const DEFAULT_GRID_HEIGHT = 32
 const CELL_SIZE = 24
 
 export default function App() {
+  const [gridWidth, setGridWidth] = useState(DEFAULT_GRID_WIDTH)
+  const [gridHeight, setGridHeight] = useState(DEFAULT_GRID_HEIGHT)
+  const [canvasBackgroundColor, setCanvasBackgroundColor] = useState('#171717')
+  const [isPropertiesModalOpen, setIsPropertiesModalOpen] = useState(false)
+  const [errorModal, setErrorModal] = useState({ isOpen: false, message: '' })
   const [selectedTool, setSelectedTool] = useState('pencil')
   const [currentColor, setCurrentColor] = useState('#ffffff')
   const [brushThickness, setBrushThickness] = useState(1)
@@ -24,7 +33,7 @@ export default function App() {
     {
       id: 0,
       name: 'Frame 1',
-      layerPixels: [Array(GRID_SIZE * GRID_SIZE).fill(null)],
+      layerPixels: [Array(DEFAULT_GRID_WIDTH * DEFAULT_GRID_HEIGHT).fill(null)],
       visible: true
     }
   ])
@@ -44,7 +53,7 @@ export default function App() {
   const [isHoveringSelection, setIsHoveringSelection] = useState(false)
   const initialHistoryState = {
     layers: [{ id: 0, name: 'Layer 1', visible: true }],
-    frames: [{ id: 0, name: 'Frame 1', layerPixels: [Array(GRID_SIZE * GRID_SIZE).fill(null)], visible: true }]
+    frames: [{ id: 0, name: 'Frame 1', layerPixels: [Array(DEFAULT_GRID_WIDTH * DEFAULT_GRID_HEIGHT).fill(null)], visible: true }]
   }
   const historyState = createHistory(initialHistoryState)
   const [history, setHistory] = useState(historyState.history)
@@ -52,7 +61,13 @@ export default function App() {
   const isUndoRedoRef = historyState.isUndoRedoRef
   const fillJustUsedRef = useRef(false)
   const canvasRef = useRef(null)
-  const canvasSize = GRID_SIZE * CELL_SIZE
+  const canvasContainerRef = useRef(null)
+  const baseCanvasWidth = gridWidth * CELL_SIZE
+  const baseCanvasHeight = gridHeight * CELL_SIZE
+  const [canvasDisplaySize, setCanvasDisplaySize] = useState({ 
+    width: baseCanvasWidth, 
+    height: baseCanvasHeight 
+  })
 
   const getCurrentLayers = useCallback(() => {
     if (framesEnabled) {
@@ -60,17 +75,17 @@ export default function App() {
       if (!frame) return []
       return layers.map((layer, index) => ({
         ...layer,
-        pixels: frame.layerPixels && frame.layerPixels[index] ? frame.layerPixels[index] : Array(GRID_SIZE * GRID_SIZE).fill(null)
+        pixels: frame.layerPixels && frame.layerPixels[index] ? frame.layerPixels[index] : Array(gridWidth * gridHeight).fill(null)
       }))
     } else {
       const frame = frames[0]
-      if (!frame) return layers.map(layer => ({ ...layer, pixels: Array(GRID_SIZE * GRID_SIZE).fill(null) }))
+      if (!frame) return layers.map(layer => ({ ...layer, pixels: Array(gridWidth * gridHeight).fill(null) }))
       return layers.map((layer, index) => ({
         ...layer,
-        pixels: frame.layerPixels && frame.layerPixels[index] ? frame.layerPixels[index] : Array(GRID_SIZE * GRID_SIZE).fill(null)
+        pixels: frame.layerPixels && frame.layerPixels[index] ? frame.layerPixels[index] : Array(gridWidth * gridHeight).fill(null)
       }))
     }
-  }, [framesEnabled, frames, activeFrameIndex, layers])
+  }, [framesEnabled, frames, activeFrameIndex, layers, gridWidth, gridHeight])
 
   const currentLayers = getCurrentLayers()
   const pixels = currentLayers[activeLayerIndex]?.pixels || []
@@ -84,15 +99,54 @@ export default function App() {
 
   useEffect(() => {
     const canvas = canvasRef.current
-    if (!canvas) return
-    initializeCanvas(canvas, canvasSize)
-  }, [canvasSize])
+    const container = canvasContainerRef.current
+    if (!canvas || !container) return
+    
+    const updateCanvasSize = () => {
+      const containerRect = container.getBoundingClientRect()
+      const availableWidth = containerRect.width - 32
+      const availableHeight = containerRect.height - 32
+      
+      if (availableWidth <= 0 || availableHeight <= 0) return
+      
+      const aspectRatio = baseCanvasWidth / baseCanvasHeight
+      const containerAspectRatio = availableWidth / availableHeight
+      
+      let displayWidth, displayHeight
+      if (containerAspectRatio > aspectRatio) {
+        displayHeight = Math.min(availableHeight, baseCanvasHeight)
+        displayWidth = displayHeight * aspectRatio
+      } else {
+        displayWidth = Math.min(availableWidth, baseCanvasWidth)
+        displayHeight = displayWidth / aspectRatio
+      }
+      
+      setCanvasDisplaySize({ width: displayWidth, height: displayHeight })
+      initializeCanvas(canvas, displayWidth, displayHeight)
+    }
+    
+    // Initial size calculation
+    const timer = setTimeout(updateCanvasSize, 0)
+    
+    const resizeObserver = new ResizeObserver(updateCanvasSize)
+    resizeObserver.observe(container)
+    
+    window.addEventListener('resize', updateCanvasSize)
+    
+    return () => {
+      clearTimeout(timer)
+      resizeObserver.disconnect()
+      window.removeEventListener('resize', updateCanvasSize)
+    }
+  }, [baseCanvasWidth, baseCanvasHeight])
 
   const renderCanvas = useCallback(() => {
     const canvas = canvasRef.current
-    if (!canvas) return
-    drawCanvas(canvas, canvasSize, GRID_SIZE, CELL_SIZE, currentLayers, selection)
-  }, [currentLayers, selection, canvasSize])
+    if (!canvas || canvasDisplaySize.width === 0 || canvasDisplaySize.height === 0) return
+    const cellSizeX = canvasDisplaySize.width / gridWidth
+    const cellSizeY = canvasDisplaySize.height / gridHeight
+    drawCanvas(canvas, canvasDisplaySize.width, canvasDisplaySize.height, gridWidth, gridHeight, cellSizeX, cellSizeY, currentLayers, selection)
+  }, [currentLayers, selection, canvasDisplaySize, gridWidth, gridHeight])
 
   useEffect(() => {
     renderCanvas()
@@ -100,11 +154,14 @@ export default function App() {
 
   const getPixelIndex = (x, y) => {
     const canvas = canvasRef.current
-    return getPixelIndexUtil(canvas, x, y, GRID_SIZE, CELL_SIZE)
+    if (!canvas || canvasDisplaySize.width === 0 || canvasDisplaySize.height === 0) return null
+    const cellSizeX = canvasDisplaySize.width / gridWidth
+    const cellSizeY = canvasDisplaySize.height / gridHeight
+    return getPixelIndexUtil(canvas, x, y, gridWidth, gridHeight, cellSizeX, cellSizeY)
   }
 
   const setPixel = useCallback((index, color) => {
-    if (index === null || index < 0 || index >= GRID_SIZE * GRID_SIZE) return
+    if (index === null || index < 0 || index >= gridWidth * gridHeight) return
     
     const frameIndex = framesEnabled ? activeFrameIndex : 0
     
@@ -113,7 +170,7 @@ export default function App() {
       const frame = newFrames[frameIndex]
       const newLayerPixels = [...frame.layerPixels]
       if (!newLayerPixels[activeLayerIndex]) {
-        newLayerPixels[activeLayerIndex] = Array(GRID_SIZE * GRID_SIZE).fill(null)
+        newLayerPixels[activeLayerIndex] = Array(gridWidth * gridHeight).fill(null)
       }
       const newPixels = [...newLayerPixels[activeLayerIndex]]
       newPixels[index] = color
@@ -170,7 +227,7 @@ export default function App() {
     
     setFrames(prev => prev.map(frame => ({
       ...frame,
-      layerPixels: [...frame.layerPixels, Array(GRID_SIZE * GRID_SIZE).fill(null)]
+      layerPixels: [...frame.layerPixels, Array(gridWidth * gridHeight).fill(null)]
     })))
     
     setActiveLayerIndex(prev => prev + 1)
@@ -246,7 +303,7 @@ export default function App() {
 
   const toggleFrames = useCallback(() => {
     if (!framesEnabled) {
-      const currentLayerPixels = frames[0]?.layerPixels || layers.map(() => Array(GRID_SIZE * GRID_SIZE).fill(null))
+      const currentLayerPixels = frames[0]?.layerPixels || layers.map(() => Array(gridWidth * gridHeight).fill(null))
       setFrames([{
         id: 0,
         name: 'Frame 1',
@@ -263,7 +320,7 @@ export default function App() {
       const newFrame = {
         id: nextFrameId,
         name: `Frame ${prev.length + 1}`,
-        layerPixels: layers.map(() => Array(GRID_SIZE * GRID_SIZE).fill(null)),
+        layerPixels: layers.map(() => Array(gridWidth * gridHeight).fill(null)),
         visible: true
       }
       setNextFrameId(prev => prev + 1)
@@ -326,6 +383,173 @@ export default function App() {
     setActiveFrameIndex(newActiveIndex)
   }, [frames.length, activeFrameIndex])
 
+  const handleFileUpload = useCallback(async (event) => {
+    const files = Array.from(event.target.files || [])
+    if (files.length === 0) return
+
+    const validFiles = files.filter(file => {
+      const fileType = file.type.toLowerCase()
+      const isImage = fileType.startsWith('image/')
+      const isGif = fileType === 'image/gif'
+      const isPng = fileType === 'image/png'
+      const isJpg = fileType === 'image/jpeg' || fileType === 'image/jpg'
+      return isImage && (isGif || isPng || isJpg)
+    })
+
+    if (validFiles.length === 0) {
+      alert('Please upload PNG, JPG, JPEG, or GIF files')
+      event.target.value = ''
+      return
+    }
+
+    try {
+      const allPixelArrays = []
+      let detectedWidth = gridWidth
+      let detectedHeight = gridHeight
+      
+      for (const file of validFiles) {
+        const fileType = file.type.toLowerCase()
+        const isGif = fileType === 'image/gif'
+        
+        // Check image dimensions first
+        const img = new Image()
+        const imageLoadPromise = new Promise((resolve, reject) => {
+          img.onload = () => {
+            if (img.width > 256 || img.height > 256) {
+              reject(new Error(`Image dimensions (${img.width}×${img.height}) exceed the maximum supported size of 256×256 pixels.`))
+            } else {
+              resolve({ width: img.width, height: img.height })
+            }
+          }
+          img.onerror = () => reject(new Error('Failed to load image'))
+          img.src = URL.createObjectURL(file)
+        })
+        
+        let imageDimensions
+        try {
+          imageDimensions = await imageLoadPromise
+          URL.revokeObjectURL(img.src)
+        } catch (error) {
+          URL.revokeObjectURL(img.src)
+          setErrorModal({
+            isOpen: true,
+            message: error.message || 'The canvas does not support images larger than 256×256 pixels.'
+          })
+          event.target.value = ''
+          return
+        }
+        
+        if (isGif) {
+          const frames = await loadGifFrames(file)
+          if (frames.length > 0 && frames[0].width) {
+            detectedWidth = frames[0].width
+            detectedHeight = frames[0].height
+          }
+          allPixelArrays.push(...frames.map(f => f.pixels))
+        } else {
+          const result = await loadImageToPixels(file)
+          if (result.width) {
+            detectedWidth = result.width
+            detectedHeight = result.height
+          }
+          allPixelArrays.push(result.pixels)
+        }
+      }
+
+      if (allPixelArrays.length === 0) {
+        alert('Failed to load images')
+        event.target.value = ''
+        return
+      }
+
+      if (detectedWidth !== gridWidth || detectedHeight !== gridHeight) {
+        setGridWidth(detectedWidth)
+        setGridHeight(detectedHeight)
+      }
+
+      const newFrames = allPixelArrays.map((pixels, index) => ({
+        id: nextFrameId + index,
+        name: `Frame ${index + 1}`,
+        layerPixels: [pixels],
+        visible: true
+      }))
+
+      setNextFrameId(prev => prev + allPixelArrays.length)
+      setFrames(newFrames)
+      setActiveFrameIndex(0)
+      
+      if (!framesEnabled) {
+        setFramesEnabled(true)
+      }
+
+      event.target.value = ''
+    } catch (error) {
+      console.error('Error loading images:', error)
+      alert('Failed to load images: ' + error.message)
+      event.target.value = ''
+    }
+  }, [framesEnabled, nextFrameId, gridWidth, gridHeight])
+
+  const handleExport = useCallback(() => {
+    const currentFrame = frames[activeFrameIndex]
+    if (!currentFrame || !currentFrame.layerPixels || currentFrame.layerPixels.length === 0) {
+      alert('No frame data to export')
+      return
+    }
+
+    const pixels = currentFrame.layerPixels[0] || Array(gridWidth * gridHeight).fill(null)
+    const { c: cCode, h: hCode } = pixelsToCCode(pixels, gridWidth, gridHeight)
+    
+    // Download .c file
+    const cBlob = new Blob([cCode], { type: 'text/plain' })
+    const cUrl = URL.createObjectURL(cBlob)
+    const cLink = document.createElement('a')
+    cLink.href = cUrl
+    cLink.download = 'sprite.c'
+    document.body.appendChild(cLink)
+    cLink.click()
+    document.body.removeChild(cLink)
+    URL.revokeObjectURL(cUrl)
+    
+    // Download .h file
+    const hBlob = new Blob([hCode], { type: 'text/plain' })
+    const hUrl = URL.createObjectURL(hBlob)
+    const hLink = document.createElement('a')
+    hLink.href = hUrl
+    hLink.download = 'sprite.h'
+    document.body.appendChild(hLink)
+    hLink.click()
+    document.body.removeChild(hLink)
+    URL.revokeObjectURL(hUrl)
+  }, [frames, activeFrameIndex, gridWidth, gridHeight])
+
+  const handleGridSizeChange = useCallback((newWidth, newHeight) => {
+    if (newWidth < 1 || newWidth > 256 || newHeight < 1 || newHeight > 256) return
+
+    const resizePixels = (oldPixels, oldWidth, oldHeight, newWidth, newHeight) => {
+      if (oldWidth === newWidth && oldHeight === newHeight) return oldPixels
+      const newPixels = Array(newWidth * newHeight).fill(null)
+      const minWidth = Math.min(oldWidth, newWidth)
+      const minHeight = Math.min(oldHeight, newHeight)
+      for (let row = 0; row < minHeight; row++) {
+        for (let col = 0; col < minWidth; col++) {
+          const oldIndex = row * oldWidth + col
+          const newIndex = row * newWidth + col
+          newPixels[newIndex] = oldPixels[oldIndex] || null
+        }
+      }
+      return newPixels
+    }
+
+    setFrames(prev => prev.map(frame => ({
+      ...frame,
+      layerPixels: frame.layerPixels.map(pixels => resizePixels(pixels || [], gridWidth, gridHeight, newWidth, newHeight))
+    })))
+
+    setGridWidth(newWidth)
+    setGridHeight(newHeight)
+  }, [gridWidth, gridHeight])
+
   const handleMouseDown = (e) => {
     const isRightButton = e.button === 2
     setIsRightClick(isRightButton)
@@ -350,7 +574,8 @@ export default function App() {
       moveStartIndex,
       originalPixels,
       originalSelection,
-      GRID_SIZE,
+      gridWidth,
+      gridHeight,
       brushThickness,
       brushOpacity,
       strokeWidth,
@@ -405,7 +630,8 @@ export default function App() {
       currentColor,
       pixels,
       selection,
-      GRID_SIZE,
+      gridWidth,
+      gridHeight,
       brushThickness,
       brushOpacity,
       strokeWidth,
@@ -489,7 +715,8 @@ export default function App() {
       currentColor,
       pixels,
       selection,
-      GRID_SIZE,
+      gridWidth,
+      gridHeight,
       strokeWidth,
       setPixels: (newPixels) => {
         const frameIndex = framesEnabled ? activeFrameIndex : 0
@@ -542,7 +769,7 @@ export default function App() {
   const redoAvailable = canRedo(history, historyIndex)
 
   return (
-    <div className="bg-neutral-900 text-white w-full h-screen flex flex-row">
+    <div className="text-white w-full h-screen flex flex-row" style={{ backgroundColor: canvasBackgroundColor }}>
       <div className="flex-1 flex flex-col min-w-0">
         <div className="flex-1 flex flex-row items-center justify-center min-h-0">
           <div className="flex flex-col gap-2 p-4">
@@ -569,13 +796,16 @@ export default function App() {
             </div>
           </div>
 
-          <div className="flex-1 h-full flex items-center justify-center p-4">
+          <div ref={canvasContainerRef} className="flex-1 h-full flex items-center justify-center p-4">
             <canvas
               ref={canvasRef}
-              width={canvasSize}
-              height={canvasSize}
               className="border border-neutral-700 cursor-crosshair"
-              style={{ cursor: isHoveringSelection ? 'pointer' : 'crosshair' }}
+              style={{ 
+                cursor: isHoveringSelection ? 'pointer' : 'crosshair',
+                width: `${canvasDisplaySize.width}px`,
+                height: `${canvasDisplaySize.height}px`,
+                imageRendering: 'pixelated'
+              }}
               onMouseDown={handleMouseDown}
               onMouseMove={handleMouseMove}
               onMouseUp={handleMouseUp}
@@ -602,9 +832,11 @@ export default function App() {
             onFrameReorder={reorderFrame}
             fps={fps}
             onFpsChange={setFps}
-            gridSize={GRID_SIZE}
+            gridWidth={gridWidth}
+            gridHeight={gridHeight}
             cellSize={CELL_SIZE}
-            canvasSize={canvasSize}
+            canvasWidth={baseCanvasWidth}
+            canvasHeight={baseCanvasHeight}
           />
         )}
       </div>
@@ -638,9 +870,22 @@ export default function App() {
         onFrameReorder={reorderFrame}
         fps={fps}
         onFpsChange={setFps}
-        gridSize={GRID_SIZE}
+        gridWidth={gridWidth}
+        gridHeight={gridHeight}
         cellSize={CELL_SIZE}
-        canvasSize={canvasSize}
+        canvasWidth={baseCanvasWidth}
+        canvasHeight={baseCanvasHeight}
+        onFileUpload={handleFileUpload}
+        onExport={handleExport}
+        onGridSizeChange={handleGridSizeChange}
+        canvasBackgroundColor={canvasBackgroundColor}
+        onCanvasBackgroundColorChange={setCanvasBackgroundColor}
+      />
+
+      <ErrorModal
+        isOpen={errorModal.isOpen}
+        onClose={() => setErrorModal({ isOpen: false, message: '' })}
+        message={errorModal.message}
       />
     </div>
   )

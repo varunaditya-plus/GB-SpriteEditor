@@ -15,15 +15,15 @@ const pointInPolygon = (x, y, polygon) => {
   return inside
 }
 
-export const getLassoSelection = (path, gridSize) => {
+export const getLassoSelection = (path, gridWidth, gridHeight) => {
   if (path.length < 3) {
     // Need at least 3 points for a polygon
     return new Set(path)
   }
 
   const polygon = path.map(index => {
-    const row = Math.floor(index / gridSize)
-    const col = index % gridSize
+    const row = Math.floor(index / gridWidth)
+    const col = index % gridWidth
     return [col, row]
   })
 
@@ -39,10 +39,12 @@ export const getLassoSelection = (path, gridSize) => {
 
   for (let row = minRow; row <= maxRow; row++) {
     for (let col = minCol; col <= maxCol; col++) {
-      const index = row * gridSize + col
-      if (index >= 0 && index < gridSize * gridSize) {
-        if (pointInPolygon(col, row, polygon)) {
-          selection.add(index)
+      if (row >= 0 && row < gridHeight && col >= 0 && col < gridWidth) {
+        const index = row * gridWidth + col
+        if (index >= 0 && index < gridWidth * gridHeight) {
+          if (pointInPolygon(col, row, polygon)) {
+            selection.add(index)
+          }
         }
       }
     }
@@ -51,13 +53,13 @@ export const getLassoSelection = (path, gridSize) => {
   return selection
 }
 
-export const handleLassoSelectionDown = (index, gridSize, setLassoPath) => {
+export const handleLassoSelectionDown = (index, gridWidth, gridHeight, setLassoPath) => {
   if (index !== null) {
     setLassoPath([index])
   }
 }
 
-export const handleLassoSelectionMove = (index, lassoPath, gridSize, setLassoPath, setSelection) => {
+export const handleLassoSelectionMove = (index, lassoPath, gridWidth, gridHeight, setLassoPath, setSelection) => {
   if (index === null) return
   
   if (lassoPath.length === 0) {
@@ -69,14 +71,14 @@ export const handleLassoSelectionMove = (index, lassoPath, gridSize, setLassoPat
   if (lassoPath[lassoPath.length - 1] !== index) {
     const newPath = [...lassoPath, index]
     setLassoPath(newPath)
-    const selection = getLassoSelection(newPath, gridSize)
+    const selection = getLassoSelection(newPath, gridWidth, gridHeight)
     setSelection(selection)
   }
 }
 
-export const handleLassoSelectionUp = (index, lassoPath, gridSize, setLassoPath, setSelection) => {
+export const handleLassoSelectionUp = (index, lassoPath, gridWidth, gridHeight, setLassoPath, setSelection) => {
   if (lassoPath.length > 0) {
-    const selection = getLassoSelection(lassoPath, gridSize)
+    const selection = getLassoSelection(lassoPath, gridWidth, gridHeight)
     setSelection(selection)
     setLassoPath([])
   }

@@ -1,10 +1,9 @@
 import { useRef, useEffect, useState, useCallback } from 'react'
 
-const GRID_SIZE = 32
 const PREVIEW_SIZE = 80
 const PREVIEW_CANVAS_SIZE = 128
 
-function FramePreview({ layers, layerPixels, visible, isActive }) {
+function FramePreview({ layers, layerPixels, visible, isActive, gridWidth, gridHeight }) {
   const canvasRef = useRef(null)
 
   useEffect(() => {
@@ -14,7 +13,8 @@ function FramePreview({ layers, layerPixels, visible, isActive }) {
     const ctx = canvas.getContext('2d')
     if (!ctx) return
 
-    const cellSize = PREVIEW_SIZE / GRID_SIZE
+    const cellSizeX = PREVIEW_SIZE / gridWidth
+    const cellSizeY = PREVIEW_SIZE / gridHeight
 
     ctx.clearRect(0, 0, PREVIEW_SIZE, PREVIEW_SIZE)
     
@@ -22,15 +22,15 @@ function FramePreview({ layers, layerPixels, visible, isActive }) {
     ctx.fillRect(0, 0, PREVIEW_SIZE, PREVIEW_SIZE)
 
     ctx.fillStyle = '#1f1f1f'
-    for (let row = 0; row < GRID_SIZE; row++) {
-      for (let col = 0; col < GRID_SIZE; col++) {
+    for (let row = 0; row < gridHeight; row++) {
+      for (let col = 0; col < gridWidth; col++) {
         if ((row + col) % 2 === 0) {
-          ctx.fillRect(col * cellSize, row * cellSize, cellSize, cellSize)
+          ctx.fillRect(col * cellSizeX, row * cellSizeY, cellSizeX, cellSizeY)
         }
       }
     }
 
-    const compositePixels = Array(GRID_SIZE * GRID_SIZE).fill(null)
+    const compositePixels = Array(gridWidth * gridHeight).fill(null)
     
     layers.forEach((layer, layerIndex) => {
       if (layer.visible && layerPixels[layerIndex]) {
@@ -44,15 +44,15 @@ function FramePreview({ layers, layerPixels, visible, isActive }) {
 
     compositePixels.forEach((color, index) => {
       if (color) {
-        const row = Math.floor(index / GRID_SIZE)
-        const col = index % GRID_SIZE
-        const x = col * cellSize
-        const y = row * cellSize
+        const row = Math.floor(index / gridWidth)
+        const col = index % gridWidth
+        const x = col * cellSizeX
+        const y = row * cellSizeY
         ctx.fillStyle = color
-        ctx.fillRect(x, y, cellSize, cellSize)
+        ctx.fillRect(x, y, cellSizeX, cellSizeY)
       }
     })
-  }, [layers, layerPixels])
+  }, [layers, layerPixels, gridWidth, gridHeight])
 
   return (
     <div className="relative flex-shrink-0">
@@ -74,12 +74,13 @@ function FramePreview({ layers, layerPixels, visible, isActive }) {
   )
 }
 
-export function AnimationPreview({ frames, layers, fps, onFpsChange, gridSize, cellSize, canvasSize }) {
+export function AnimationPreview({ frames, layers, fps, onFpsChange, gridWidth, gridHeight, cellSize, canvasWidth, canvasHeight }) {
   const canvasRef = useRef(null)
   const [currentFrameIndex, setCurrentFrameIndex] = useState(0)
   const animationRef = useRef(null)
   const previewSize = 128
-  const previewCellSize = previewSize / gridSize
+  const previewCellSizeX = previewSize / gridWidth
+  const previewCellSizeY = previewSize / gridHeight
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -108,19 +109,22 @@ export function AnimationPreview({ frames, layers, fps, onFpsChange, gridSize, c
 
       ctx.strokeStyle = '#404040'
       ctx.lineWidth = 1
-      for (let i = 0; i <= gridSize; i++) {
-        const pos = i * previewCellSize + 0.5
+      for (let i = 0; i <= gridWidth; i++) {
+        const pos = i * previewCellSizeX + 0.5
         ctx.beginPath()
         ctx.moveTo(pos, 0)
         ctx.lineTo(pos, previewSize)
         ctx.stroke()
+      }
+      for (let i = 0; i <= gridHeight; i++) {
+        const pos = i * previewCellSizeY + 0.5
         ctx.beginPath()
         ctx.moveTo(0, pos)
         ctx.lineTo(previewSize, pos)
         ctx.stroke()
       }
 
-      const compositePixels = Array(gridSize * gridSize).fill(null)
+      const compositePixels = Array(gridWidth * gridHeight).fill(null)
       
       layers.forEach((layer, layerIndex) => {
         if (layer.visible && currentFrame.layerPixels[layerIndex]) {
@@ -134,16 +138,16 @@ export function AnimationPreview({ frames, layers, fps, onFpsChange, gridSize, c
 
       compositePixels.forEach((color, index) => {
         if (color) {
-          const row = Math.floor(index / gridSize)
-          const col = index % gridSize
-          const x = col * previewCellSize
-          const y = row * previewCellSize
+          const row = Math.floor(index / gridWidth)
+          const col = index % gridWidth
+          const x = col * previewCellSizeX
+          const y = row * previewCellSizeY
           ctx.fillStyle = color
-          ctx.fillRect(x, y, previewCellSize, previewCellSize)
+          ctx.fillRect(x, y, previewCellSizeX, previewCellSizeY)
         }
       })
     }
-  }, [frames, layers, currentFrameIndex, gridSize, previewCellSize, previewSize])
+  }, [frames, layers, currentFrameIndex, gridWidth, gridHeight, previewCellSizeX, previewCellSizeY, previewSize])
 
   useEffect(() => {
     if (frames.length === 0) return
@@ -206,9 +210,11 @@ export default function Frames({
   onFrameReorder,
   fps,
   onFpsChange,
-  gridSize,
+  gridWidth,
+  gridHeight,
   cellSize,
-  canvasSize
+  canvasWidth,
+  canvasHeight
 }) {
   const canDelete = frames.length > 1
   const scrollContainerRef = useRef(null)
@@ -302,6 +308,8 @@ export default function Frames({
               layerPixels={frame.layerPixels} 
               visible={true}
               isActive={activeFrameIndex === index}
+              gridWidth={gridWidth}
+              gridHeight={gridHeight}
             />
           </div>
         ))}

@@ -1,8 +1,10 @@
-const drawPixelWithStroke = (x, y, color, strokeWidth, gridSize, newPixels) => {
+const drawPixelWithStroke = (x, y, color, strokeWidth, gridWidth, gridHeight, newPixels) => {
   if (strokeWidth === 1) {
-    const index = y * gridSize + x
-    if (index >= 0 && index < newPixels.length && x >= 0 && x < gridSize && y >= 0 && y < gridSize) {
-      newPixels[index] = color
+    if (x >= 0 && x < gridWidth && y >= 0 && y < gridHeight) {
+      const index = y * gridWidth + x
+      if (index >= 0 && index < newPixels.length) {
+        newPixels[index] = color
+      }
     }
     return
   }
@@ -11,8 +13,8 @@ const drawPixelWithStroke = (x, y, color, strokeWidth, gridSize, newPixels) => {
   for (let row = y - radius; row <= y + radius; row++) {
     for (let col = x - radius; col <= x + radius; col++) {
       const distance = Math.sqrt((row - y) ** 2 + (col - x) ** 2)
-      if (distance <= radius && row >= 0 && row < gridSize && col >= 0 && col < gridSize) {
-        const index = row * gridSize + col
+      if (distance <= radius && row >= 0 && row < gridHeight && col >= 0 && col < gridWidth) {
+        const index = row * gridWidth + col
         if (index >= 0 && index < newPixels.length) {
           newPixels[index] = color
         }
@@ -21,13 +23,13 @@ const drawPixelWithStroke = (x, y, color, strokeWidth, gridSize, newPixels) => {
   }
 }
 
-export const drawLine = (startIndex, endIndex, color, strokeWidth, gridSize, setPixels, originalPixels) => {
+export const drawLine = (startIndex, endIndex, color, strokeWidth, gridWidth, gridHeight, setPixels, originalPixels) => {
   if (startIndex === null || endIndex === null) return
 
-  const startRow = Math.floor(startIndex / gridSize)
-  const startCol = startIndex % gridSize
-  const endRow = Math.floor(endIndex / gridSize)
-  const endCol = endIndex % gridSize
+  const startRow = Math.floor(startIndex / gridWidth)
+  const startCol = startIndex % gridWidth
+  const endRow = Math.floor(endIndex / gridWidth)
+  const endCol = endIndex % gridWidth
 
   const newPixels = [...originalPixels]
   
@@ -43,7 +45,7 @@ export const drawLine = (startIndex, endIndex, color, strokeWidth, gridSize, set
   let err = dx - dy
 
   while (true) {
-    drawPixelWithStroke(x0, y0, color, strokeWidth, gridSize, newPixels)
+    drawPixelWithStroke(x0, y0, color, strokeWidth, gridWidth, gridHeight, newPixels)
 
     if (x0 === x1 && y0 === y1) break
 
@@ -61,21 +63,21 @@ export const drawLine = (startIndex, endIndex, color, strokeWidth, gridSize, set
   setPixels(newPixels)
 }
 
-export const handleLineDown = (index, color, gridSize, setStartPoint) => {
+export const handleLineDown = (index, color, gridWidth, gridHeight, setStartPoint) => {
   if (index !== null) {
     setStartPoint(index)
   }
 }
 
-export const handleLineMove = (index, startIndex, color, strokeWidth, gridSize, setPixels, originalPixels) => {
+export const handleLineMove = (index, startIndex, color, strokeWidth, gridWidth, gridHeight, setPixels, originalPixels) => {
   if (startIndex !== null && index !== null) {
-    drawLine(startIndex, index, color, strokeWidth, gridSize, setPixels, originalPixels)
+    drawLine(startIndex, index, color, strokeWidth, gridWidth, gridHeight, setPixels, originalPixels)
   }
 }
 
-export const handleLineUp = (index, startIndex, color, strokeWidth, gridSize, setPixels, originalPixels, setStartPoint) => {
+export const handleLineUp = (index, startIndex, color, strokeWidth, gridWidth, gridHeight, setPixels, originalPixels, setStartPoint) => {
   if (startIndex !== null && index !== null) {
-    drawLine(startIndex, index, color, strokeWidth, gridSize, setPixels, originalPixels)
+    drawLine(startIndex, index, color, strokeWidth, gridWidth, gridHeight, setPixels, originalPixels)
   }
   setStartPoint(null)
 }

@@ -1,8 +1,10 @@
-const drawPixelWithStroke = (x, y, color, strokeWidth, gridSize, newPixels) => {
+const drawPixelWithStroke = (x, y, color, strokeWidth, gridWidth, gridHeight, newPixels) => {
   if (strokeWidth === 1) {
-    const index = y * gridSize + x
-    if (index >= 0 && index < newPixels.length && x >= 0 && x < gridSize && y >= 0 && y < gridSize) {
-      newPixels[index] = color
+    if (x >= 0 && x < gridWidth && y >= 0 && y < gridHeight) {
+      const index = y * gridWidth + x
+      if (index >= 0 && index < newPixels.length) {
+        newPixels[index] = color
+      }
     }
     return
   }
@@ -11,8 +13,8 @@ const drawPixelWithStroke = (x, y, color, strokeWidth, gridSize, newPixels) => {
   for (let row = y - radius; row <= y + radius; row++) {
     for (let col = x - radius; col <= x + radius; col++) {
       const distance = Math.sqrt((row - y) ** 2 + (col - x) ** 2)
-      if (distance <= radius && row >= 0 && row < gridSize && col >= 0 && col < gridSize) {
-        const index = row * gridSize + col
+      if (distance <= radius && row >= 0 && row < gridHeight && col >= 0 && col < gridWidth) {
+        const index = row * gridWidth + col
         if (index >= 0 && index < newPixels.length) {
           newPixels[index] = color
         }
@@ -21,13 +23,13 @@ const drawPixelWithStroke = (x, y, color, strokeWidth, gridSize, newPixels) => {
   }
 }
 
-export const drawCircle = (startIndex, endIndex, color, strokeWidth, gridSize, setPixels, originalPixels, filled = false) => {
+export const drawCircle = (startIndex, endIndex, color, strokeWidth, gridWidth, gridHeight, setPixels, originalPixels, filled = false) => {
   if (startIndex === null || endIndex === null) return
 
-  const centerRow = Math.floor(startIndex / gridSize)
-  const centerCol = startIndex % gridSize
-  const edgeRow = Math.floor(endIndex / gridSize)
-  const edgeCol = endIndex % gridSize
+  const centerRow = Math.floor(startIndex / gridWidth)
+  const centerCol = startIndex % gridWidth
+  const edgeRow = Math.floor(endIndex / gridWidth)
+  const edgeCol = endIndex % gridWidth
 
   const dx = edgeCol - centerCol
   const dy = edgeRow - centerRow
@@ -37,13 +39,13 @@ export const drawCircle = (startIndex, endIndex, color, strokeWidth, gridSize, s
 
   if (filled) {
     // Draw filled circle using midpoint algorithm
-    for (let row = 0; row < gridSize; row++) {
-      for (let col = 0; col < gridSize; col++) {
+    for (let row = 0; row < gridHeight; row++) {
+      for (let col = 0; col < gridWidth; col++) {
         const dx = col - centerCol
         const dy = row - centerRow
         const distance = Math.sqrt(dx * dx + dy * dy)
         if (distance <= radius) {
-          const index = row * gridSize + col
+          const index = row * gridWidth + col
           if (index >= 0 && index < newPixels.length) {
             newPixels[index] = color
           }
@@ -69,7 +71,7 @@ export const drawCircle = (startIndex, endIndex, color, strokeWidth, gridSize, s
       ]
 
       for (const [px, py] of points) {
-        drawPixelWithStroke(px, py, color, strokeWidth, gridSize, newPixels)
+        drawPixelWithStroke(px, py, color, strokeWidth, gridWidth, gridHeight, newPixels)
       }
     }
 
@@ -90,21 +92,21 @@ export const drawCircle = (startIndex, endIndex, color, strokeWidth, gridSize, s
   setPixels(newPixels)
 }
 
-export const handleCircleDown = (index, color, gridSize, setStartPoint) => {
+export const handleCircleDown = (index, color, gridWidth, gridHeight, setStartPoint) => {
   if (index !== null) {
     setStartPoint(index)
   }
 }
 
-export const handleCircleMove = (index, startIndex, color, strokeWidth, gridSize, setPixels, originalPixels, filled = false) => {
+export const handleCircleMove = (index, startIndex, color, strokeWidth, gridWidth, gridHeight, setPixels, originalPixels, filled = false) => {
   if (startIndex !== null && index !== null) {
-    drawCircle(startIndex, index, color, strokeWidth, gridSize, setPixels, originalPixels, filled)
+    drawCircle(startIndex, index, color, strokeWidth, gridWidth, gridHeight, setPixels, originalPixels, filled)
   }
 }
 
-export const handleCircleUp = (index, startIndex, color, strokeWidth, gridSize, setPixels, originalPixels, setStartPoint, filled = false) => {
+export const handleCircleUp = (index, startIndex, color, strokeWidth, gridWidth, gridHeight, setPixels, originalPixels, setStartPoint, filled = false) => {
   if (startIndex !== null && index !== null) {
-    drawCircle(startIndex, index, color, strokeWidth, gridSize, setPixels, originalPixels, filled)
+    drawCircle(startIndex, index, color, strokeWidth, gridWidth, gridHeight, setPixels, originalPixels, filled)
   }
   setStartPoint(null)
 }

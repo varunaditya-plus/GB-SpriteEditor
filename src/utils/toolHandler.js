@@ -23,7 +23,8 @@ export const handleToolMouseDown = ({
   moveStartIndex,
   originalPixels,
   originalSelection,
-  GRID_SIZE,
+  gridWidth,
+  gridHeight,
   brushThickness,
   brushOpacity,
   strokeWidth,
@@ -62,36 +63,36 @@ export const handleToolMouseDown = ({
 
   // If right-click with pencil or eraser, treat as eraser
   if ((selectedTool === 'pencil' || selectedTool === 'eraser') && isRightButton) {
-    handleEraserDown(index, brushThickness, brushOpacity, GRID_SIZE, pixels, setPixel)
+    handleEraserDown(index, brushThickness, brushOpacity, gridWidth, gridHeight, pixels, setPixel)
     return
   }
 
   // Route to appropriate tool handler
   switch (selectedTool) {
     case 'pencil':
-      handlePencilDown(index, currentColor, brushThickness, brushOpacity, GRID_SIZE, pixels, setPixel)
+      handlePencilDown(index, currentColor, brushThickness, brushOpacity, gridWidth, gridHeight, pixels, setPixel)
       break
     case 'eraser':
-      handleEraserDown(index, brushThickness, brushOpacity, GRID_SIZE, pixels, setPixel)
+      handleEraserDown(index, brushThickness, brushOpacity, gridWidth, gridHeight, pixels, setPixel)
       break
     case 'fill':
-      handleFillDown(index, currentColor, pixels, GRID_SIZE, setPixels)
+      handleFillDown(index, currentColor, pixels, gridWidth, gridHeight, setPixels)
       break
     case 'line':
-      handleLineDown(index, currentColor, GRID_SIZE, setStartPoint)
+      handleLineDown(index, currentColor, gridWidth, gridHeight, setStartPoint)
       break
     case 'rectangle':
-      handleRectangleDown(index, currentColor, GRID_SIZE, setStartPoint)
+      handleRectangleDown(index, currentColor, gridWidth, gridHeight, setStartPoint)
       break
     case 'circle':
-      handleCircleDown(index, currentColor, GRID_SIZE, setStartPoint)
+      handleCircleDown(index, currentColor, gridWidth, gridHeight, setStartPoint)
       break
     case 'rectangleSelection':
-      handleRectangleSelectionDown(index, GRID_SIZE, setStartPoint)
+      handleRectangleSelectionDown(index, gridWidth, gridHeight, setStartPoint)
       setSelection(new Set())
       break
     case 'lassoSelection':
-      handleLassoSelectionDown(index, GRID_SIZE, setLassoPath)
+      handleLassoSelectionDown(index, gridWidth, gridHeight, setLassoPath)
       setSelection(new Set())
       break
     case 'colorPicker':
@@ -116,7 +117,8 @@ export const handleToolMouseMove = ({
   currentColor,
   pixels,
   selection,
-  GRID_SIZE,
+  gridWidth,
+  gridHeight,
   brushThickness,
   brushOpacity,
   strokeWidth,
@@ -132,51 +134,51 @@ export const handleToolMouseMove = ({
 
   // Handle moving selection
   if (isMovingSelection && moveStartIndex !== null && originalPixels !== null && originalSelection !== null) {
-    moveSelection(originalSelection, moveStartIndex, index, pixels, GRID_SIZE, setPixels, originalPixels)
-    const newSelection = updateSelectionIndices(originalSelection, moveStartIndex, index, GRID_SIZE)
+    moveSelection(originalSelection, moveStartIndex, index, pixels, gridWidth, gridHeight, setPixels, originalPixels)
+    const newSelection = updateSelectionIndices(originalSelection, moveStartIndex, index, gridWidth, gridHeight)
     setSelection(newSelection)
     return
   }
 
   // If right-click with pencil or eraser, treat as eraser
   if ((selectedTool === 'pencil' || selectedTool === 'eraser') && isRightClick) {
-    handleEraserMove(index, brushThickness, brushOpacity, GRID_SIZE, pixels, setPixel)
+    handleEraserMove(index, brushThickness, brushOpacity, gridWidth, gridHeight, pixels, setPixel)
     return
   }
 
   // Route to appropriate tool handler
   switch (selectedTool) {
     case 'pencil':
-      handlePencilMove(index, currentColor, brushThickness, brushOpacity, GRID_SIZE, pixels, setPixel)
+      handlePencilMove(index, currentColor, brushThickness, brushOpacity, gridWidth, gridHeight, pixels, setPixel)
       break
     case 'eraser':
-      handleEraserMove(index, brushThickness, brushOpacity, GRID_SIZE, pixels, setPixel)
+      handleEraserMove(index, brushThickness, brushOpacity, gridWidth, gridHeight, pixels, setPixel)
       break
     case 'line':
       if (startPoint !== null && originalPixels !== null) {
         setPixels([...originalPixels])
-        handleLineMove(index, startPoint, currentColor, strokeWidth, GRID_SIZE, setPixels, originalPixels)
+        handleLineMove(index, startPoint, currentColor, strokeWidth, gridWidth, gridHeight, setPixels, originalPixels)
       }
       break
     case 'rectangle':
       if (startPoint !== null && originalPixels !== null) {
         setPixels([...originalPixels])
-        handleRectangleMove(index, startPoint, currentColor, strokeWidth, GRID_SIZE, setPixels, originalPixels, false)
+        handleRectangleMove(index, startPoint, currentColor, strokeWidth, gridWidth, gridHeight, setPixels, originalPixels, false)
       }
       break
     case 'circle':
       if (startPoint !== null && originalPixels !== null) {
         setPixels([...originalPixels])
-        handleCircleMove(index, startPoint, currentColor, strokeWidth, GRID_SIZE, setPixels, originalPixels, false)
+        handleCircleMove(index, startPoint, currentColor, strokeWidth, gridWidth, gridHeight, setPixels, originalPixels, false)
       }
       break
     case 'rectangleSelection':
       if (startPoint !== null) {
-        handleRectangleSelectionMove(index, startPoint, GRID_SIZE, setSelection)
+        handleRectangleSelectionMove(index, startPoint, gridWidth, gridHeight, setSelection)
       }
       break
     case 'lassoSelection':
-      handleLassoSelectionMove(index, lassoPath, GRID_SIZE, setLassoPath, setSelection)
+      handleLassoSelectionMove(index, lassoPath, gridWidth, gridHeight, setLassoPath, setSelection)
       break
     default:
       break
@@ -197,7 +199,8 @@ export const handleToolMouseUp = ({
   currentColor,
   pixels,
   selection,
-  GRID_SIZE,
+  gridWidth,
+  gridHeight,
   strokeWidth,
   setPixels,
   setSelection,
@@ -215,8 +218,8 @@ export const handleToolMouseUp = ({
   // Handle finishing moving selection
   if (isMovingSelection && moveStartIndex !== null && originalPixels !== null && originalSelection !== null) {
     if (index !== null) {
-      moveSelection(originalSelection, moveStartIndex, index, pixels, GRID_SIZE, setPixels, originalPixels)
-      const newSelection = updateSelectionIndices(originalSelection, moveStartIndex, index, GRID_SIZE)
+      moveSelection(originalSelection, moveStartIndex, index, pixels, gridWidth, gridHeight, setPixels, originalPixels)
+      const newSelection = updateSelectionIndices(originalSelection, moveStartIndex, index, gridWidth, gridHeight)
       setSelection(newSelection)
     } else {
       setPixels([...originalPixels])
@@ -235,7 +238,7 @@ export const handleToolMouseUp = ({
   switch (selectedTool) {
     case 'line':
       if (startPoint !== null && originalPixels !== null && index !== null) {
-        handleLineUp(index, startPoint, currentColor, strokeWidth, GRID_SIZE, setPixels, originalPixels, setStartPoint)
+        handleLineUp(index, startPoint, currentColor, strokeWidth, gridWidth, gridHeight, setPixels, originalPixels, setStartPoint)
       } else if (startPoint !== null) {
         setPixels([...originalPixels])
         setStartPoint(null)
@@ -243,7 +246,7 @@ export const handleToolMouseUp = ({
       break
     case 'rectangle':
       if (startPoint !== null && originalPixels !== null && index !== null) {
-        handleRectangleUp(index, startPoint, currentColor, strokeWidth, GRID_SIZE, setPixels, originalPixels, setStartPoint, false)
+        handleRectangleUp(index, startPoint, currentColor, strokeWidth, gridWidth, gridHeight, setPixels, originalPixels, setStartPoint, false)
       } else if (startPoint !== null) {
         setPixels([...originalPixels])
         setStartPoint(null)
@@ -251,7 +254,7 @@ export const handleToolMouseUp = ({
       break
     case 'circle':
       if (startPoint !== null && originalPixels !== null && index !== null) {
-        handleCircleUp(index, startPoint, currentColor, strokeWidth, GRID_SIZE, setPixels, originalPixels, setStartPoint, false)
+        handleCircleUp(index, startPoint, currentColor, strokeWidth, gridWidth, gridHeight, setPixels, originalPixels, setStartPoint, false)
       } else if (startPoint !== null) {
         setPixels([...originalPixels])
         setStartPoint(null)
@@ -259,7 +262,7 @@ export const handleToolMouseUp = ({
       break
     case 'rectangleSelection':
       if (startPoint !== null && index !== null && hasMoved) {
-        handleRectangleSelectionUp(index, startPoint, GRID_SIZE, setSelection, setStartPoint)
+        handleRectangleSelectionUp(index, startPoint, gridWidth, gridHeight, setSelection, setStartPoint)
       } else if (startPoint !== null) {
         setSelection(new Set())
         setStartPoint(null)
@@ -267,7 +270,7 @@ export const handleToolMouseUp = ({
       break
     case 'lassoSelection':
       if (lassoPath.length > 0 && hasMoved) {
-        handleLassoSelectionUp(index, lassoPath, GRID_SIZE, setLassoPath, setSelection)
+        handleLassoSelectionUp(index, lassoPath, gridWidth, gridHeight, setLassoPath, setSelection)
       } else if (lassoPath.length > 0) {
         setSelection(new Set())
         setLassoPath([])

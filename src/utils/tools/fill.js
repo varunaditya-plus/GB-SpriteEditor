@@ -1,4 +1,4 @@
-export const floodFill = (startIndex, fillColor, pixels, gridSize, setPixels) => {
+export const floodFill = (startIndex, fillColor, pixels, gridWidth, gridHeight, setPixels) => {
   if (startIndex === null || startIndex < 0 || startIndex >= pixels.length) {
     return
   }
@@ -14,14 +14,14 @@ export const floodFill = (startIndex, fillColor, pixels, gridSize, setPixels) =>
   const stack = [startIndex]
 
   const getNeighbors = (index) => {
-    const row = Math.floor(index / gridSize)
-    const col = index % gridSize
+    const row = Math.floor(index / gridWidth)
+    const col = index % gridWidth
     const neighbors = []
 
-    if (row > 0) neighbors.push(index - gridSize)
-    if (row < gridSize - 1) neighbors.push(index + gridSize)
+    if (row > 0) neighbors.push(index - gridWidth)
+    if (row < gridHeight - 1) neighbors.push(index + gridWidth)
     if (col > 0) neighbors.push(index - 1)
-    if (col < gridSize - 1) neighbors.push(index + 1)
+    if (col < gridWidth - 1) neighbors.push(index + 1)
 
     return neighbors
   }
@@ -46,6 +46,6 @@ export const floodFill = (startIndex, fillColor, pixels, gridSize, setPixels) =>
   setPixels(newPixels)
 }
 
-export const handleFillDown = (index, fillColor, pixels, gridSize, setPixels) => {
-  floodFill(index, fillColor, pixels, gridSize, setPixels)
+export const handleFillDown = (index, fillColor, pixels, gridWidth, gridHeight, setPixels) => {
+  floodFill(index, fillColor, pixels, gridWidth, gridHeight, setPixels)
 }

@@ -1,6 +1,8 @@
+import { useState } from 'react'
 import ColorPicker from './ColorPicker'
 import Layers from './Layers'
 import { AnimationPreview } from './Frames'
+import PropertiesModal from './PropertiesModal'
 
 export default function Panels({
   selectedTool,
@@ -31,10 +33,18 @@ export default function Panels({
   onFrameReorder,
   fps,
   onFpsChange,
-  gridSize,
+  gridWidth,
+  gridHeight,
   cellSize,
-  canvasSize
+  canvasWidth,
+  canvasHeight,
+  onFileUpload,
+  onExport,
+  onGridSizeChange,
+  canvasBackgroundColor,
+  onCanvasBackgroundColorChange
 }) {
+  const [isPropertiesModalOpen, setIsPropertiesModalOpen] = useState(false)
   const showBrushSettings = selectedTool === 'pencil' || selectedTool === 'eraser'
   const showStrokeSettings = selectedTool === 'line' || selectedTool === 'rectangle' || selectedTool === 'circle'
 
@@ -151,13 +161,53 @@ export default function Panels({
             layers={frameLayers}
             fps={fps}
             onFpsChange={onFpsChange}
-            gridSize={gridSize}
+            gridWidth={gridWidth}
+            gridHeight={gridHeight}
             cellSize={cellSize}
-            canvasSize={canvasSize}
+            canvasWidth={canvasWidth}
+            canvasHeight={canvasHeight}
           />
         )}
       </div>
 
+      <div className="flex flex-col gap-2 pt-2 border-t border-neutral-700 mt-auto">
+        <button
+          onClick={() => setIsPropertiesModalOpen(true)}
+          className="w-full px-3 py-2 bg-neutral-700 hover:bg-neutral-600 rounded text-sm text-neutral-200 transition-colors"
+        >
+          Properties
+        </button>
+        <input
+          type="file"
+          accept=".png,.jpg,.jpeg,.gif,image/png,image/jpeg,image/gif"
+          onChange={onFileUpload}
+          className="hidden"
+          id="file-upload-input"
+          multiple
+        />
+        <label
+          htmlFor="file-upload-input"
+          className="w-full px-3 py-2 bg-neutral-700 hover:bg-neutral-600 rounded text-sm text-neutral-200 text-center cursor-pointer transition-colors"
+        >
+          Upload file
+        </label>
+        <button
+          onClick={onExport}
+          className="w-full px-3 py-2 bg-neutral-700 hover:bg-neutral-600 rounded text-sm text-neutral-200 transition-colors"
+        >
+          Export file
+        </button>
+      </div>
+
+      <PropertiesModal
+        isOpen={isPropertiesModalOpen}
+        onClose={() => setIsPropertiesModalOpen(false)}
+        gridWidth={gridWidth}
+        gridHeight={gridHeight}
+        onGridSizeChange={onGridSizeChange}
+        canvasBackgroundColor={canvasBackgroundColor}
+        onCanvasBackgroundColorChange={onCanvasBackgroundColorChange}
+      />
     </div>
   )
 }

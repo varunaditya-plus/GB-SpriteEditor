@@ -1,14 +1,14 @@
-export const initializeCanvas = (canvas, canvasSize) => {
+export const initializeCanvas = (canvas, canvasWidth, canvasHeight) => {
   if (!canvas) return
 
   const dpr = window.devicePixelRatio || 1
-  canvas.width = canvasSize * dpr
-  canvas.height = canvasSize * dpr
-  canvas.style.width = `${canvasSize}px`
-  canvas.style.height = `${canvasSize}px`
+  canvas.width = canvasWidth * dpr
+  canvas.height = canvasHeight * dpr
+  canvas.style.width = `${canvasWidth}px`
+  canvas.style.height = `${canvasHeight}px`
 }
 
-export const drawCanvas = (canvas, canvasSize, gridSize, cellSize, layers, selection) => {
+export const drawCanvas = (canvas, canvasWidth, canvasHeight, gridWidth, gridHeight, cellSizeX, cellSizeY, layers, selection) => {
   if (!canvas) return
 
   const ctx = canvas.getContext('2d')
@@ -18,25 +18,26 @@ export const drawCanvas = (canvas, canvasSize, gridSize, cellSize, layers, selec
   ctx.setTransform(1, 0, 0, 1, 0, 0)
   ctx.scale(dpr, dpr)
 
-  ctx.clearRect(0, 0, canvasSize, canvasSize)
-  ctx.fillStyle = 'transparent'
-  ctx.fillRect(0, 0, canvasSize, canvasSize)
+  ctx.clearRect(0, 0, canvasWidth, canvasHeight)
 
   ctx.strokeStyle = '#404040'
   ctx.lineWidth = 1
-  for (let i = 0; i <= gridSize; i++) {
-    const pos = i * cellSize + 0.5
+  for (let i = 0; i <= gridWidth; i++) {
+    const pos = i * cellSizeX + 0.5
     ctx.beginPath()
     ctx.moveTo(pos, 0)
-    ctx.lineTo(pos, canvasSize)
+    ctx.lineTo(pos, canvasHeight)
     ctx.stroke()
+  }
+  for (let i = 0; i <= gridHeight; i++) {
+    const pos = i * cellSizeY + 0.5
     ctx.beginPath()
     ctx.moveTo(0, pos)
-    ctx.lineTo(canvasSize, pos)
+    ctx.lineTo(canvasWidth, pos)
     ctx.stroke()
   }
 
-  const compositePixels = Array(gridSize * gridSize).fill(null)
+  const compositePixels = Array(gridWidth * gridHeight).fill(null)
   
   layers.forEach(layer => {
     if (layer.visible) {
@@ -50,12 +51,12 @@ export const drawCanvas = (canvas, canvasSize, gridSize, cellSize, layers, selec
 
   compositePixels.forEach((color, index) => {
     if (color) {
-      const row = Math.floor(index / gridSize)
-      const col = index % gridSize
-      const x = col * cellSize
-      const y = row * cellSize
+      const row = Math.floor(index / gridWidth)
+      const col = index % gridWidth
+      const x = col * cellSizeX
+      const y = row * cellSizeY
       ctx.fillStyle = color
-      ctx.fillRect(x, y, cellSize, cellSize)
+      ctx.fillRect(x, y, cellSizeX, cellSizeY)
     }
   })
 
@@ -65,31 +66,31 @@ export const drawCanvas = (canvas, canvasSize, gridSize, cellSize, layers, selec
     ctx.lineWidth = 1
 
     selection.forEach((index) => {
-      const row = Math.floor(index / gridSize)
-      const col = index % gridSize
-      const x = col * cellSize
-      const y = row * cellSize
+      const row = Math.floor(index / gridWidth)
+      const col = index % gridWidth
+      const x = col * cellSizeX
+      const y = row * cellSizeY
 
-      ctx.fillRect(x, y, cellSize, cellSize)
-      ctx.strokeRect(x + 0.5, y + 0.5, cellSize - 1, cellSize - 1)
+      ctx.fillRect(x, y, cellSizeX, cellSizeY)
+      ctx.strokeRect(x + 0.5, y + 0.5, cellSizeX - 1, cellSizeY - 1)
     })
   }
 }
 
-export const getPixelIndex = (canvas, x, y, gridSize, cellSize) => {
+export const getPixelIndex = (canvas, x, y, gridWidth, gridHeight, cellSizeX, cellSizeY) => {
   if (!canvas) return null
   
   const rect = canvas.getBoundingClientRect()
   const canvasX = x - rect.left
   const canvasY = y - rect.top
   
-  const cellX = Math.floor(canvasX / cellSize)
-  const cellY = Math.floor(canvasY / cellSize)
+  const cellX = Math.floor(canvasX / cellSizeX)
+  const cellY = Math.floor(canvasY / cellSizeY)
   
-  if (cellX < 0 || cellX >= gridSize || cellY < 0 || cellY >= gridSize) {
+  if (cellX < 0 || cellX >= gridWidth || cellY < 0 || cellY >= gridHeight) {
     return null
   }
   
-  return cellY * gridSize + cellX
+  return cellY * gridWidth + cellX
 }
 
