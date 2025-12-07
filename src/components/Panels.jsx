@@ -184,7 +184,7 @@ export default function Panels({
         </button>
         <input
           type="file"
-          accept=".png,.jpg,.jpeg,.gif,image/png,image/jpeg,image/gif"
+          accept=".png,.jpg,.jpeg,.gif,.json,image/png,image/jpeg,image/gif,application/json"
           onChange={onFileUpload}
           className="hidden"
           id="file-upload-input"

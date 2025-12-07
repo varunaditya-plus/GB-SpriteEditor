@@ -37,6 +37,16 @@ export default function ExportModal({ isOpen, onClose, onExport }) {
             <div className="font-medium">C/H (ZIP)</div>
             <div className="text-xs text-neutral-400 mt-1">Export as Game Boy C and H files in ZIP</div>
           </button>
+          <button
+            onClick={() => {
+              onExport('json')
+              onClose()
+            }}
+            className="w-full px-4 py-3 bg-neutral-700 hover:bg-neutral-600 rounded text-sm text-neutral-200 transition-colors text-left"
+          >
+            <div className="font-medium">JSON</div>
+            <div className="text-xs text-neutral-400 mt-1">Export project with all settings</div>
+          </button>
         </div>
         <div className="flex gap-2 justify-end pt-2">
           <button

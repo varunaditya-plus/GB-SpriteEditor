@@ -10,7 +10,7 @@ import { handleToolMouseDown, handleToolMouseMove, handleToolMouseUp, checkHover
 import { initializeCanvas, drawCanvas, getPixelIndex as getPixelIndexUtil } from './utils/canvas'
 import { createHistory, saveToHistory, undo, redo, canUndo, canRedo } from './utils/history'
 import { loadImageToPixels, loadGifFrames } from './utils/imageUtils'
-import { exportPNG, exportGIF, exportCH } from './utils/exportUtils'
+import { exportPNG, exportGIF, exportCH, exportJSON } from './utils/exportUtils'
 import { createSelectionContextMenuHandlers } from './utils/selectionContextMenu'
 
 const DEFAULT_GRID_WIDTH = 32
@@ -438,6 +438,86 @@ export default function App() {
     const files = Array.from(event.target.files || [])
     if (files.length === 0) return
 
+    const file = files[0]
+    
+    // Check if it's a JSON file
+    if (file.type === 'application/json' || file.name.endsWith('.json')) {
+      try {
+        const text = await file.text()
+        const projectData = JSON.parse(text)
+        
+        // Validate JSON structure
+        if (!projectData.version || !projectData.layers || !projectData.frames) {
+          throw new Error('Invalid project file format')
+        }
+        
+        // Restore grid dimensions first (needed for normalization)
+        const restoredGridWidth = projectData.gridWidth || DEFAULT_GRID_WIDTH
+        const restoredGridHeight = projectData.gridHeight || DEFAULT_GRID_HEIGHT
+        
+        // Normalize frames and layers pixel arrays to match grid dimensions
+        const normalizedFrames = (projectData.frames || []).map(frame => ({
+          ...frame,
+          layerPixels: (frame.layerPixels || []).map(layerPixels => {
+            if (!layerPixels) return Array(restoredGridWidth * restoredGridHeight).fill(null)
+            const targetSize = restoredGridWidth * restoredGridHeight
+            if (layerPixels.length !== targetSize) {
+              const normalized = Array(targetSize).fill(null)
+              const copyLength = Math.min(layerPixels.length, targetSize)
+              for (let i = 0; i < copyLength; i++) {
+                normalized[i] = layerPixels[i] || null
+              }
+              return normalized
+            }
+            return [...layerPixels]
+          })
+        }))
+        
+        // Restore project state
+        setGridWidth(restoredGridWidth)
+        setGridHeight(restoredGridHeight)
+        if (projectData.canvasBackgroundColor) setCanvasBackgroundColor(projectData.canvasBackgroundColor)
+        if (projectData.selectedTool) setSelectedTool(projectData.selectedTool)
+        if (projectData.currentColor) setCurrentColor(projectData.currentColor)
+        if (projectData.brushThickness !== undefined) setBrushThickness(projectData.brushThickness)
+        if (projectData.brushOpacity !== undefined) setBrushOpacity(projectData.brushOpacity)
+        if (projectData.strokeWidth !== undefined) setStrokeWidth(projectData.strokeWidth)
+        if (projectData.nextLayerId !== undefined) setNextLayerId(projectData.nextLayerId)
+        if (projectData.framesEnabled !== undefined) setFramesEnabled(projectData.framesEnabled)
+        if (projectData.nextFrameId !== undefined) setNextFrameId(projectData.nextFrameId)
+        if (projectData.layers) setLayers(projectData.layers)
+        setFrames(normalizedFrames)
+        if (projectData.activeFrameIndex !== undefined) {
+          const safeIndex = Math.min(projectData.activeFrameIndex, normalizedFrames.length - 1)
+          setActiveFrameIndex(Math.max(0, safeIndex))
+        }
+        if (projectData.fps !== undefined) setFps(projectData.fps)
+        if (projectData.activeLayerIndex !== undefined) {
+          const safeIndex = Math.min(projectData.activeLayerIndex, (projectData.layers || []).length - 1)
+          setActiveLayerIndex(Math.max(0, safeIndex))
+        }
+        
+        // Reset history with new state
+        const newHistoryState = {
+          layers: projectData.layers || [],
+          frames: normalizedFrames
+        }
+        const newHistory = createHistory(newHistoryState)
+        setHistory(newHistory.history)
+        setHistoryIndex(newHistory.historyIndex)
+        
+        event.target.value = ''
+      } catch (error) {
+        console.error('Error loading project:', error)
+        setErrorModal({
+          isOpen: true,
+          message: `Failed to load project: ${error.message || 'Invalid file format'}`
+        })
+        event.target.value = ''
+      }
+      return
+    }
+
     const validFiles = files.filter(file => {
       const fileType = file.type.toLowerCase()
       const isImage = fileType.startsWith('image/')
@@ -448,7 +528,7 @@ export default function App() {
     })
 
     if (validFiles.length === 0) {
-      alert('Please upload PNG, JPG, JPEG, or GIF files')
+      alert('Please upload PNG, JPG, JPEG, GIF, or JSON files')
       event.target.value = ''
       return
     }
@@ -552,6 +632,25 @@ export default function App() {
         await exportGIF(frames, layers, gridWidth, gridHeight, fps, framesEnabled)
       } else if (format === 'ch') {
         await exportCH(frames, layers, gridWidth, gridHeight, framesEnabled)
+      } else if (format === 'json') {
+        exportJSON({
+          gridWidth,
+          gridHeight,
+          canvasBackgroundColor,
+          selectedTool,
+          currentColor,
+          brushThickness,
+          brushOpacity,
+          strokeWidth,
+          nextLayerId,
+          framesEnabled,
+          nextFrameId,
+          layers,
+          frames,
+          activeFrameIndex,
+          fps,
+          activeLayerIndex
+        })
       }
     } catch (error) {
       console.error('Export error:', error)
@@ -560,7 +659,7 @@ export default function App() {
         message: `Failed to export: ${error.message || 'Unknown error'}`
       })
     }
-  }, [frames, layers, gridWidth, gridHeight, framesEnabled, fps])
+  }, [frames, layers, gridWidth, gridHeight, framesEnabled, fps, canvasBackgroundColor, selectedTool, currentColor, brushThickness, brushOpacity, strokeWidth, nextLayerId, nextFrameId, activeFrameIndex, activeLayerIndex])
 
   const handleGridSizeChange = useCallback((newWidth, newHeight) => {
     if (newWidth < 1 || newWidth > 256 || newHeight < 1 || newHeight > 256) return

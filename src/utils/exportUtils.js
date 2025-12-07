@@ -566,3 +566,37 @@ export const exportCH = async (frames, layers, gridWidth, gridHeight, framesEnab
   URL.revokeObjectURL(url)
 }
 
+// Export project as JSON
+export const exportJSON = (projectState) => {
+  const exportData = {
+    version: '1.0',
+    gridWidth: projectState.gridWidth,
+    gridHeight: projectState.gridHeight,
+    canvasBackgroundColor: projectState.canvasBackgroundColor,
+    selectedTool: projectState.selectedTool,
+    currentColor: projectState.currentColor,
+    brushThickness: projectState.brushThickness,
+    brushOpacity: projectState.brushOpacity,
+    strokeWidth: projectState.strokeWidth,
+    nextLayerId: projectState.nextLayerId,
+    framesEnabled: projectState.framesEnabled,
+    nextFrameId: projectState.nextFrameId,
+    layers: projectState.layers,
+    frames: projectState.frames,
+    activeFrameIndex: projectState.activeFrameIndex,
+    fps: projectState.fps,
+    activeLayerIndex: projectState.activeLayerIndex
+  }
+  
+  const jsonString = JSON.stringify(exportData, null, 2)
+  const blob = new Blob([jsonString], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = 'project.json'
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  URL.revokeObjectURL(url)
+}
+
