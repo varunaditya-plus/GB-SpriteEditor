@@ -32,14 +32,18 @@ export default function App() {
   const [nextLayerId, setNextLayerId] = useState(1)
   const [framesEnabled, setFramesEnabled] = useState(false)
   const [nextFrameId, setNextFrameId] = useState(1)
-  const [layers, setLayers] = useState(() => [
-    { id: 0, name: 'Layer 1', visible: true }
-  ])
   const [frames, setFrames] = useState(() => [
     {
       id: 0,
       name: 'Frame 1',
-      layerPixels: [Array(DEFAULT_GRID_WIDTH * DEFAULT_GRID_HEIGHT).fill(null)],
+      layers: [
+        {
+          id: 0,
+          name: 'Layer 1',
+          visible: true,
+          pixels: Array(DEFAULT_GRID_WIDTH * DEFAULT_GRID_HEIGHT).fill(null)
+        }
+      ],
       visible: true
     }
   ])
@@ -60,16 +64,20 @@ export default function App() {
   const [contextMenu, setContextMenu] = useState({ isOpen: false, x: 0, y: 0 })
   const [cropSelection, setCropSelection] = useState(null)
   const initialHistoryState = {
-    layers: [{ id: 0, name: 'Layer 1', visible: true }],
-    frames: [{ id: 0, name: 'Frame 1', layerPixels: [Array(DEFAULT_GRID_WIDTH * DEFAULT_GRID_HEIGHT).fill(null)], visible: true }]
+    frames: [{ id: 0, name: 'Frame 1', layers: [{ id: 0, name: 'Layer 1', visible: true, pixels: Array(DEFAULT_GRID_WIDTH * DEFAULT_GRID_HEIGHT).fill(null) }], visible: true }]
   }
   const historyState = createHistory(initialHistoryState)
   const [history, setHistory] = useState(historyState.history)
   const [historyIndex, setHistoryIndex] = useState(historyState.historyIndex)
   const isUndoRedoRef = historyState.isUndoRedoRef
   const fillJustUsedRef = useRef(false)
+  const nextLayerIdRef = useRef(nextLayerId)
   const canvasRef = useRef(null)
   const canvasContainerRef = useRef(null)
+  
+  useEffect(() => {
+    nextLayerIdRef.current = nextLayerId
+  }, [nextLayerId])
   const baseCanvasWidth = gridWidth * CELL_SIZE
   const baseCanvasHeight = gridHeight * CELL_SIZE
   const [canvasDisplaySize, setCanvasDisplaySize] = useState({ 
@@ -94,33 +102,14 @@ export default function App() {
   }, [])
 
   const getCurrentLayers = useCallback(() => {
-    if (framesEnabled) {
-      const frame = frames[activeFrameIndex]
-      if (!frame) return []
-      return layers.map((layer, index) => ({
-        ...layer,
-        pixels: normalizePixelArray(
-          frame.layerPixels && frame.layerPixels[index] ? frame.layerPixels[index] : null,
-          gridWidth,
-          gridHeight
-        )
-      }))
-    } else {
-      const frame = frames[0]
-      if (!frame) return layers.map(layer => ({ 
-        ...layer, 
-        pixels: normalizePixelArray(null, gridWidth, gridHeight)
-      }))
-      return layers.map((layer, index) => ({
-        ...layer,
-        pixels: normalizePixelArray(
-          frame.layerPixels && frame.layerPixels[index] ? frame.layerPixels[index] : null,
-          gridWidth,
-          gridHeight
-        )
-      }))
-    }
-  }, [framesEnabled, frames, activeFrameIndex, layers, gridWidth, gridHeight, normalizePixelArray])
+    const frameIndex = framesEnabled ? activeFrameIndex : 0
+    const frame = frames[frameIndex]
+    if (!frame || !frame.layers) return []
+    return frame.layers.map(layer => ({
+      ...layer,
+      pixels: normalizePixelArray(layer.pixels, gridWidth, gridHeight)
+    }))
+  }, [framesEnabled, frames, activeFrameIndex, gridWidth, gridHeight, normalizePixelArray])
 
   const currentLayers = getCurrentLayers()
   const pixels = currentLayers[activeLayerIndex]?.pixels || []
@@ -212,40 +201,52 @@ export default function App() {
     if (index === null || index < 0 || index >= gridWidth * gridHeight) return
     
     const frameIndex = framesEnabled ? activeFrameIndex : 0
+    if (frameIndex < 0 || frameIndex >= frames.length) return
     
     setFrames(prev => {
       const newFrames = [...prev]
       const frame = newFrames[frameIndex]
-      const newLayerPixels = [...frame.layerPixels]
+      if (!frame || !frame.layers) return newFrames
+      
+      const newLayers = [...frame.layers]
       // Normalize pixel array to ensure correct size
-      if (!newLayerPixels[activeLayerIndex]) {
-        newLayerPixels[activeLayerIndex] = Array(gridWidth * gridHeight).fill(null)
+      if (activeLayerIndex < 0 || activeLayerIndex >= newLayers.length) return newFrames
+      
+      if (!newLayers[activeLayerIndex]) {
+        newLayers[activeLayerIndex] = {
+          id: nextLayerIdRef.current,
+          name: `Layer ${newLayers.length + 1}`,
+          visible: true,
+          pixels: Array(gridWidth * gridHeight).fill(null)
+        }
       }
-      const newPixels = normalizePixelArray(newLayerPixels[activeLayerIndex], gridWidth, gridHeight)
+      const newPixels = normalizePixelArray(newLayers[activeLayerIndex].pixels, gridWidth, gridHeight)
       if (index >= 0 && index < newPixels.length) {
         newPixels[index] = color
       }
-      newLayerPixels[activeLayerIndex] = newPixels
+      newLayers[activeLayerIndex] = {
+        ...newLayers[activeLayerIndex],
+        pixels: newPixels
+      }
       newFrames[frameIndex] = {
         ...frame,
-        layerPixels: newLayerPixels
+        layers: newLayers
       }
       return newFrames
     })
-  }, [activeLayerIndex, framesEnabled, activeFrameIndex, gridWidth, gridHeight, normalizePixelArray])
+  }, [activeLayerIndex, framesEnabled, activeFrameIndex, frames.length, gridWidth, gridHeight, normalizePixelArray])
 
   const handleSaveToHistory = useCallback(() => {
-    const stateToSave = { layers, frames }
+    const stateToSave = { frames }
     const result = saveToHistory(history, historyIndex, stateToSave, isUndoRedoRef)
     if (result) {
       setHistory(result.history)
       setHistoryIndex(result.historyIndex)
     }
-  }, [historyIndex, history, layers, frames])
+  }, [historyIndex, history, frames])
 
   const handleUndo = useCallback(() => {
     const restoreState = (state) => {
-      setLayers(state.layers)
       setFrames(state.frames)
     }
     const newIndex = undo(history, historyIndex, restoreState, isUndoRedoRef)
@@ -256,7 +257,6 @@ export default function App() {
 
   const handleRedo = useCallback(() => {
     const restoreState = (state) => {
-      setLayers(state.layers)
       setFrames(state.frames)
     }
     const newIndex = redo(history, historyIndex, restoreState, isUndoRedoRef)
@@ -266,61 +266,92 @@ export default function App() {
   }, [historyIndex, history])
 
   const addLayer = useCallback(() => {
-    setLayers(prev => {
+    const frameIndex = framesEnabled ? activeFrameIndex : 0
+    if (frameIndex < 0 || frameIndex >= frames.length) return
+    
+    setFrames(prev => {
+      const newFrames = [...prev]
+      const frame = newFrames[frameIndex]
+      if (!frame || !frame.layers) return newFrames
+      
       const newLayer = {
         id: nextLayerId,
-        name: `Layer ${prev.length + 1}`,
-        visible: true
+        name: `Layer ${frame.layers.length + 1}`,
+        visible: true,
+        pixels: Array(gridWidth * gridHeight).fill(null)
       }
       setNextLayerId(prev => prev + 1)
-      return [...prev, newLayer]
+      newFrames[frameIndex] = {
+        ...frame,
+        layers: [...frame.layers, newLayer]
+      }
+      return newFrames
     })
     
-    setFrames(prev => prev.map(frame => ({
-      ...frame,
-      layerPixels: [...frame.layerPixels, Array(gridWidth * gridHeight).fill(null)]
-    })))
-    
     setActiveLayerIndex(prev => prev + 1)
-  }, [nextLayerId])
+  }, [nextLayerId, framesEnabled, activeFrameIndex, frames.length, gridWidth, gridHeight])
 
   const deleteLayer = useCallback((index) => {
-    if (layers.length <= 1) return
+    const frameIndex = framesEnabled ? activeFrameIndex : 0
+    const frame = frames[frameIndex]
+    if (!frame || frame.layers.length <= 1) return
     
-    setLayers(prev => prev.filter((_, i) => i !== index))
-    
-    setFrames(prev => prev.map(frame => ({
-      ...frame,
-      layerPixels: frame.layerPixels.filter((_, i) => i !== index)
-    })))
+    setFrames(prev => {
+      const newFrames = [...prev]
+      const currentFrame = newFrames[frameIndex]
+      newFrames[frameIndex] = {
+        ...currentFrame,
+        layers: currentFrame.layers.filter((_, i) => i !== index)
+      }
+      return newFrames
+    })
     
     if (activeLayerIndex >= index && activeLayerIndex > 0) {
       setActiveLayerIndex(prev => Math.max(0, prev - 1))
-    } else if (activeLayerIndex >= layers.length - 1) {
-      setActiveLayerIndex(layers.length - 2)
+    } else if (activeLayerIndex >= frame.layers.length - 1) {
+      setActiveLayerIndex(frame.layers.length - 2)
     }
-  }, [layers.length, activeLayerIndex])
+  }, [framesEnabled, activeFrameIndex, frames, activeLayerIndex])
 
   const selectLayer = useCallback((index) => {
-    if (index >= 0 && index < layers.length) {
+    const frameIndex = framesEnabled ? activeFrameIndex : 0
+    const frame = frames[frameIndex]
+    if (frame && index >= 0 && index < frame.layers.length) {
       setActiveLayerIndex(index)
     }
-  }, [layers.length])
+  }, [framesEnabled, activeFrameIndex, frames])
 
   const toggleLayerVisibility = useCallback((index) => {
-    setLayers(prev => {
-      const newLayers = [...prev]
+    const frameIndex = framesEnabled ? activeFrameIndex : 0
+    if (frameIndex < 0 || frameIndex >= frames.length) return
+    
+    setFrames(prev => {
+      const newFrames = [...prev]
+      const frame = newFrames[frameIndex]
+      if (!frame || !frame.layers || index < 0 || index >= frame.layers.length) return newFrames
+      
+      const newLayers = [...frame.layers]
       newLayers[index] = {
         ...newLayers[index],
         visible: !newLayers[index].visible
       }
-      return newLayers
+      newFrames[frameIndex] = {
+        ...frame,
+        layers: newLayers
+      }
+      return newFrames
     })
-  }, [])
+  }, [framesEnabled, activeFrameIndex, frames.length])
 
   const reorderLayer = useCallback((fromIndex, toIndex) => {
     if (fromIndex === toIndex) return
-    if (toIndex < 0 || toIndex >= layers.length) return
+    const frameIndex = framesEnabled ? activeFrameIndex : 0
+    if (frameIndex < 0 || frameIndex >= frames.length) return
+    
+    const frame = frames[frameIndex]
+    if (!frame || !frame.layers) return
+    if (fromIndex < 0 || fromIndex >= frame.layers.length) return
+    if (toIndex < 0 || toIndex >= frame.layers.length) return
     
     let newActiveIndex = activeLayerIndex
     
@@ -332,67 +363,85 @@ export default function App() {
       newActiveIndex = activeLayerIndex + 1
     }
     
-    setLayers(prev => {
-      const newLayers = [...prev]
+    setFrames(prev => {
+      const newFrames = [...prev]
+      const currentFrame = newFrames[frameIndex]
+      if (!currentFrame || !currentFrame.layers) return newFrames
+      
+      const newLayers = [...currentFrame.layers]
       const [movedLayer] = newLayers.splice(fromIndex, 1)
       newLayers.splice(toIndex, 0, movedLayer)
-      return newLayers
+      newFrames[frameIndex] = {
+        ...currentFrame,
+        layers: newLayers
+      }
+      return newFrames
     })
     
-    setFrames(prev => prev.map(frame => {
-      const newLayerPixels = [...frame.layerPixels]
-      const [movedPixels] = newLayerPixels.splice(fromIndex, 1)
-      newLayerPixels.splice(toIndex, 0, movedPixels)
-      return {
-        ...frame,
-        layerPixels: newLayerPixels
-      }
-    }))
-    
     setActiveLayerIndex(newActiveIndex)
-  }, [layers.length, activeLayerIndex])
+  }, [framesEnabled, activeFrameIndex, frames, activeLayerIndex])
 
   const toggleFrames = useCallback(() => {
     if (!framesEnabled) {
-      const currentLayerPixels = frames[0]?.layerPixels || layers.map(() => Array(gridWidth * gridHeight).fill(null))
-      setFrames([{
-        id: 0,
-        name: 'Frame 1',
-        layerPixels: JSON.parse(JSON.stringify(currentLayerPixels)),
-        visible: true
-      }])
+      const currentFrame = frames[0]
+      if (currentFrame && currentFrame.layers) {
+        setFrames([{
+          id: 0,
+          name: 'Frame 1',
+          layers: JSON.parse(JSON.stringify(currentFrame.layers)),
+          visible: true
+        }])
+      } else {
+        setFrames([{
+          id: 0,
+          name: 'Frame 1',
+          layers: [{
+            id: 0,
+            name: 'Layer 1',
+            visible: true,
+            pixels: Array(gridWidth * gridHeight).fill(null)
+          }],
+          visible: true
+        }])
+      }
       setActiveFrameIndex(0)
     }
     setFramesEnabled(prev => !prev)
-  }, [framesEnabled, frames, layers])
+  }, [framesEnabled, frames, gridWidth, gridHeight])
 
   const addFrame = useCallback(() => {
     setFrames(prev => {
       const newFrame = {
         id: nextFrameId,
         name: `Frame ${prev.length + 1}`,
-        layerPixels: layers.map(() => Array(gridWidth * gridHeight).fill(null)),
+        layers: [{
+          id: 0,
+          name: 'Layer 1',
+          visible: true,
+          pixels: Array(gridWidth * gridHeight).fill(null)
+        }],
         visible: true
       }
       setNextFrameId(prev => prev + 1)
       return [...prev, newFrame]
     })
     setActiveFrameIndex(prev => prev + 1)
-  }, [nextFrameId, layers])
+  }, [nextFrameId, gridWidth, gridHeight])
 
   const duplicateFrame = useCallback((index) => {
     if (index < 0 || index >= frames.length) return
     
     const frameToDuplicate = frames[index]
-    const duplicatedLayerPixels = frameToDuplicate.layerPixels.map(layerPixels => 
-      JSON.parse(JSON.stringify(layerPixels))
-    )
+    const duplicatedLayers = frameToDuplicate.layers.map(layer => ({
+      ...layer,
+      pixels: JSON.parse(JSON.stringify(layer.pixels))
+    }))
     
     setFrames(prev => {
       const newFrame = {
         id: nextFrameId,
         name: `Frame ${prev.length + 1}`,
-        layerPixels: duplicatedLayerPixels,
+        layers: duplicatedLayers,
         visible: frameToDuplicate.visible !== undefined ? frameToDuplicate.visible : true
       }
       setNextFrameId(prev => prev + 1)
@@ -471,7 +520,7 @@ export default function App() {
         const projectData = JSON.parse(text)
         
         // Validate JSON structure
-        if (!projectData.version || !projectData.layers || !projectData.frames) {
+        if (!projectData.version || !projectData.frames) {
           throw new Error('Invalid project file format')
         }
         
@@ -482,18 +531,24 @@ export default function App() {
         // Normalize frames and layers pixel arrays to match grid dimensions
         const normalizedFrames = (projectData.frames || []).map(frame => ({
           ...frame,
-          layerPixels: (frame.layerPixels || []).map(layerPixels => {
-            if (!layerPixels) return Array(restoredGridWidth * restoredGridHeight).fill(null)
+          layers: (frame.layers || []).map(layer => {
             const targetSize = restoredGridWidth * restoredGridHeight
-            if (layerPixels.length !== targetSize) {
+            const pixels = layer.pixels || []
+            if (pixels.length !== targetSize) {
               const normalized = Array(targetSize).fill(null)
-              const copyLength = Math.min(layerPixels.length, targetSize)
+              const copyLength = Math.min(pixels.length, targetSize)
               for (let i = 0; i < copyLength; i++) {
-                normalized[i] = layerPixels[i] || null
+                normalized[i] = pixels[i] || null
               }
-              return normalized
+              return {
+                ...layer,
+                pixels: normalized
+              }
             }
-            return [...layerPixels]
+            return {
+              ...layer,
+              pixels: [...pixels]
+            }
           })
         }))
         
@@ -509,21 +564,20 @@ export default function App() {
         if (projectData.nextLayerId !== undefined) setNextLayerId(projectData.nextLayerId)
         if (projectData.framesEnabled !== undefined) setFramesEnabled(projectData.framesEnabled)
         if (projectData.nextFrameId !== undefined) setNextFrameId(projectData.nextFrameId)
-        if (projectData.layers) setLayers(projectData.layers)
         setFrames(normalizedFrames)
         if (projectData.activeFrameIndex !== undefined) {
           const safeIndex = Math.min(projectData.activeFrameIndex, normalizedFrames.length - 1)
           setActiveFrameIndex(Math.max(0, safeIndex))
         }
         if (projectData.fps !== undefined) setFps(projectData.fps)
-        if (projectData.activeLayerIndex !== undefined) {
-          const safeIndex = Math.min(projectData.activeLayerIndex, (projectData.layers || []).length - 1)
+        if (projectData.activeLayerIndex !== undefined && normalizedFrames.length > 0) {
+          const activeFrame = normalizedFrames[Math.max(0, Math.min(projectData.activeFrameIndex || 0, normalizedFrames.length - 1))]
+          const safeIndex = Math.min(projectData.activeLayerIndex, (activeFrame?.layers || []).length - 1)
           setActiveLayerIndex(Math.max(0, safeIndex))
         }
         
         // Reset history with new state
         const newHistoryState = {
-          layers: projectData.layers || [],
           frames: normalizedFrames
         }
         const newHistory = createHistory(newHistoryState)
@@ -624,7 +678,12 @@ export default function App() {
       const newFrames = allPixelArrays.map((pixels, index) => ({
         id: nextFrameId + index,
         name: `Frame ${index + 1}`,
-        layerPixels: [pixels],
+        layers: [{
+          id: 0,
+          name: 'Layer 1',
+          visible: true,
+          pixels: pixels
+        }],
         visible: true
       }))
 
@@ -651,11 +710,11 @@ export default function App() {
   const handleExportFormat = useCallback(async (format) => {
     try {
       if (format === 'png') {
-        await exportPNG(frames, layers, gridWidth, gridHeight, framesEnabled)
+        await exportPNG(frames, gridWidth, gridHeight, framesEnabled)
       } else if (format === 'gif') {
-        await exportGIF(frames, layers, gridWidth, gridHeight, fps, framesEnabled)
+        await exportGIF(frames, gridWidth, gridHeight, fps, framesEnabled)
       } else if (format === 'ch') {
-        await exportCH(frames, layers, gridWidth, gridHeight, framesEnabled)
+        await exportCH(frames, gridWidth, gridHeight, framesEnabled)
       } else if (format === 'json') {
         exportJSON({
           gridWidth,
@@ -669,7 +728,6 @@ export default function App() {
           nextLayerId,
           framesEnabled,
           nextFrameId,
-          layers,
           frames,
           activeFrameIndex,
           fps,
@@ -683,7 +741,7 @@ export default function App() {
         message: `Failed to export: ${error.message || 'Unknown error'}`
       })
     }
-  }, [frames, layers, gridWidth, gridHeight, framesEnabled, fps, canvasBackgroundColor, selectedTool, currentColor, brushThickness, brushOpacity, strokeWidth, nextLayerId, nextFrameId, activeFrameIndex, activeLayerIndex])
+  }, [frames, gridWidth, gridHeight, framesEnabled, fps, canvasBackgroundColor, selectedTool, currentColor, brushThickness, brushOpacity, strokeWidth, nextLayerId, nextFrameId, activeFrameIndex, activeLayerIndex])
 
   const handleGridSizeChange = useCallback((newWidth, newHeight) => {
     if (newWidth < 1 || newWidth > 256 || newHeight < 1 || newHeight > 256) return
@@ -705,7 +763,10 @@ export default function App() {
 
     setFrames(prev => prev.map(frame => ({
       ...frame,
-      layerPixels: frame.layerPixels.map(pixels => resizePixels(pixels || [], gridWidth, gridHeight, newWidth, newHeight))
+      layers: frame.layers.map(layer => ({
+        ...layer,
+        pixels: resizePixels(layer.pixels || [], gridWidth, gridHeight, newWidth, newHeight)
+      }))
     })))
 
     setGridWidth(newWidth)
@@ -720,7 +781,7 @@ export default function App() {
     // Crop pixels from all frames and layers
     setFrames(prev => prev.map(frame => ({
       ...frame,
-      layerPixels: frame.layerPixels.map(layerPixels => {
+      layers: frame.layers.map(layer => {
         const croppedPixels = Array(width * height).fill(null)
         for (let row = 0; row < height; row++) {
           for (let col = 0; col < width; col++) {
@@ -728,12 +789,15 @@ export default function App() {
             const oldCol = minCol + col
             const oldIndex = oldRow * gridWidth + oldCol
             const newIndex = row * width + col
-            if (oldIndex >= 0 && oldIndex < layerPixels.length) {
-              croppedPixels[newIndex] = layerPixels[oldIndex] || null
+            if (oldIndex >= 0 && oldIndex < layer.pixels.length) {
+              croppedPixels[newIndex] = layer.pixels[oldIndex] || null
             }
           }
         }
-        return croppedPixels
+        return {
+          ...layer,
+          pixels: croppedPixels
+        }
       })
     })))
 
@@ -792,15 +856,32 @@ export default function App() {
       setPixel,
       setPixels: (newPixels) => {
         const frameIndex = framesEnabled ? activeFrameIndex : 0
+        if (frameIndex < 0 || frameIndex >= frames.length) return
+        
         setFrames(prev => {
           const newFrames = [...prev]
           const frame = newFrames[frameIndex]
-          const newLayerPixels = [...frame.layerPixels]
+          if (!frame || !frame.layers) return newFrames
+          
+          const newLayers = [...frame.layers]
           // Normalize pixel array to ensure correct size
-          newLayerPixels[activeLayerIndex] = normalizePixelArray(newPixels, gridWidth, gridHeight)
+          if (activeLayerIndex < 0 || activeLayerIndex >= newLayers.length) return newFrames
+          
+          if (!newLayers[activeLayerIndex]) {
+            newLayers[activeLayerIndex] = {
+              id: nextLayerIdRef.current,
+              name: `Layer ${newLayers.length + 1}`,
+              visible: true,
+              pixels: Array(gridWidth * gridHeight).fill(null)
+            }
+          }
+          newLayers[activeLayerIndex] = {
+            ...newLayers[activeLayerIndex],
+            pixels: normalizePixelArray(newPixels, gridWidth, gridHeight)
+          }
           newFrames[frameIndex] = {
             ...frame,
-            layerPixels: newLayerPixels
+            layers: newLayers
           }
           return newFrames
         })
@@ -849,15 +930,32 @@ export default function App() {
       setPixel,
       setPixels: (newPixels) => {
         const frameIndex = framesEnabled ? activeFrameIndex : 0
+        if (frameIndex < 0 || frameIndex >= frames.length) return
+        
         setFrames(prev => {
           const newFrames = [...prev]
           const frame = newFrames[frameIndex]
-          const newLayerPixels = [...frame.layerPixels]
+          if (!frame || !frame.layers) return newFrames
+          
+          const newLayers = [...frame.layers]
           // Normalize pixel array to ensure correct size
-          newLayerPixels[activeLayerIndex] = normalizePixelArray(newPixels, gridWidth, gridHeight)
+          if (activeLayerIndex < 0 || activeLayerIndex >= newLayers.length) return newFrames
+          
+          if (!newLayers[activeLayerIndex]) {
+            newLayers[activeLayerIndex] = {
+              id: nextLayerIdRef.current,
+              name: `Layer ${newLayers.length + 1}`,
+              visible: true,
+              pixels: Array(gridWidth * gridHeight).fill(null)
+            }
+          }
+          newLayers[activeLayerIndex] = {
+            ...newLayers[activeLayerIndex],
+            pixels: normalizePixelArray(newPixels, gridWidth, gridHeight)
+          }
           newFrames[frameIndex] = {
             ...frame,
-            layerPixels: newLayerPixels
+            layers: newLayers
           }
           return newFrames
         })
@@ -934,15 +1032,32 @@ export default function App() {
       strokeWidth,
       setPixels: (newPixels) => {
         const frameIndex = framesEnabled ? activeFrameIndex : 0
+        if (frameIndex < 0 || frameIndex >= frames.length) return
+        
         setFrames(prev => {
           const newFrames = [...prev]
           const frame = newFrames[frameIndex]
-          const newLayerPixels = [...frame.layerPixels]
+          if (!frame || !frame.layers) return newFrames
+          
+          const newLayers = [...frame.layers]
           // Normalize pixel array to ensure correct size
-          newLayerPixels[activeLayerIndex] = normalizePixelArray(newPixels, gridWidth, gridHeight)
+          if (activeLayerIndex < 0 || activeLayerIndex >= newLayers.length) return newFrames
+          
+          if (!newLayers[activeLayerIndex]) {
+            newLayers[activeLayerIndex] = {
+              id: nextLayerIdRef.current,
+              name: `Layer ${newLayers.length + 1}`,
+              visible: true,
+              pixels: Array(gridWidth * gridHeight).fill(null)
+            }
+          }
+          newLayers[activeLayerIndex] = {
+            ...newLayers[activeLayerIndex],
+            pixels: normalizePixelArray(newPixels, gridWidth, gridHeight)
+          }
           newFrames[frameIndex] = {
             ...frame,
-            layerPixels: newLayerPixels
+            layers: newLayers
           }
           return newFrames
         })
@@ -1022,13 +1137,11 @@ export default function App() {
       activeFrameIndex,
       activeLayerIndex,
       frames,
-      layers,
       nextLayerId,
       nextFrameId,
       gridWidth,
       gridHeight,
       setFrames,
-      setLayers,
       setNextLayerId,
       setNextFrameId,
       setActiveLayerIndex,
@@ -1036,7 +1149,7 @@ export default function App() {
       setSelection,
       handleSaveToHistory
     })
-  }, [selection, framesEnabled, activeFrameIndex, activeLayerIndex, frames, layers, nextLayerId, nextFrameId, gridWidth, gridHeight, handleSaveToHistory])
+  }, [selection, framesEnabled, activeFrameIndex, activeLayerIndex, frames, nextLayerId, nextFrameId, gridWidth, gridHeight, handleSaveToHistory])
 
   const {
     handleDeleteSelection,
@@ -1120,7 +1233,6 @@ export default function App() {
             framesEnabled={framesEnabled}
             onFramesToggle={toggleFrames}
             frames={frames}
-            layers={layers}
             activeFrameIndex={activeFrameIndex}
             onFrameSelect={selectFrame}
             onFrameAdd={addFrame}
@@ -1156,7 +1268,6 @@ export default function App() {
         framesEnabled={framesEnabled}
         onFramesToggle={toggleFrames}
         frames={frames}
-        frameLayers={layers}
         activeFrameIndex={activeFrameIndex}
         onFrameSelect={selectFrame}
         onFrameAdd={addFrame}
@@ -1217,3 +1328,4 @@ export default function App() {
     </div>
   )
 }
+

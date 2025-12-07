@@ -46,7 +46,7 @@ const getHue = (hex) => {
   return h
 }
 
-export default function ColorPalette({ frames, frameLayers, framesEnabled, currentColor, onColorChange }) {
+export default function ColorPalette({ frames, framesEnabled, currentColor, onColorChange }) {
   // Extract unique colors from all frames
   const uniqueColors = useMemo(() => {
     const colorSet = new Set()
@@ -56,17 +56,16 @@ export default function ColorPalette({ frames, frameLayers, framesEnabled, curre
     
     // Iterate through frames
     framesToCheck.forEach((frame) => {
-      if (!frame || !frame.layerPixels) return
+      if (!frame || !frame.layers) return
       
       // Iterate through layers
-      frame.layerPixels.forEach((layerPixels, layerIndex) => {
+      frame.layers.forEach((layer) => {
         // Check if layer is visible
-        const layer = frameLayers && frameLayers[layerIndex]
-        if (layer && layer.visible === false) return
+        if (layer.visible === false) return
         
         // Extract colors from this layer
-        if (Array.isArray(layerPixels)) {
-          layerPixels.forEach((color) => {
+        if (Array.isArray(layer.pixels)) {
+          layer.pixels.forEach((color) => {
             if (color && typeof color === 'string') {
               colorSet.add(color.toUpperCase())
             }
@@ -87,7 +86,7 @@ export default function ColorPalette({ frames, frameLayers, framesEnabled, curre
     })
     
     return colorsArray
-  }, [frames, frameLayers, framesEnabled])
+  }, [frames, framesEnabled])
 
   if (uniqueColors.length === 0) {
     return (

@@ -3,7 +3,7 @@ import ContextMenu from './ContextMenu'
 
 const PREVIEW_SIZE = 80
 
-function FramePreview({ layers, layerPixels, visible, isActive, gridWidth, gridHeight }) {
+function FramePreview({ layers, visible, isActive, gridWidth, gridHeight }) {
   const canvasRef = useRef(null)
 
   useEffect(() => {
@@ -41,10 +41,10 @@ function FramePreview({ layers, layerPixels, visible, isActive, gridWidth, gridH
 
     const compositePixels = Array(gridWidth * gridHeight).fill(null)
     
-    layers.forEach((layer, layerIndex) => {
-      if (layer.visible && layerPixels[layerIndex]) {
+    layers.forEach((layer) => {
+      if (layer.visible && layer.pixels) {
         // Ensure we only process valid indices
-        const pixelArray = layerPixels[layerIndex]
+        const pixelArray = layer.pixels
         const maxIndex = Math.min(pixelArray.length, gridWidth * gridHeight)
         for (let i = 0; i < maxIndex; i++) {
           if (pixelArray[i]) {
@@ -71,7 +71,7 @@ function FramePreview({ layers, layerPixels, visible, isActive, gridWidth, gridH
         ctx.fillRect(x, y, width, height)
       }
     })
-  }, [layers, layerPixels, gridWidth, gridHeight])
+  }, [layers, gridWidth, gridHeight])
 
   return (
     <div className="relative flex-shrink-0">
@@ -93,7 +93,7 @@ function FramePreview({ layers, layerPixels, visible, isActive, gridWidth, gridH
   )
 }
 
-export function AnimationPreview({ frames, layers, fps, onFpsChange, gridWidth, gridHeight }) {
+export function AnimationPreview({ frames, fps, onFpsChange, gridWidth, gridHeight }) {
   const canvasRef = useRef(null)
   const [currentFrameIndex, setCurrentFrameIndex] = useState(0)
   const animationRef = useRef(null)
@@ -118,7 +118,7 @@ export function AnimationPreview({ frames, layers, fps, onFpsChange, gridWidth, 
     ctx.scale(dpr, dpr)
 
     const currentFrame = frames[currentFrameIndex]
-    if (currentFrame) {
+    if (currentFrame && currentFrame.layers) {
       ctx.clearRect(0, 0, previewSize, previewSize)
       ctx.fillStyle = '#171717'
       ctx.fillRect(0, 0, previewSize, previewSize)
@@ -142,10 +142,10 @@ export function AnimationPreview({ frames, layers, fps, onFpsChange, gridWidth, 
 
       const compositePixels = Array(gridWidth * gridHeight).fill(null)
       
-      layers.forEach((layer, layerIndex) => {
-        if (layer.visible && currentFrame.layerPixels[layerIndex]) {
+      currentFrame.layers.forEach((layer) => {
+        if (layer.visible && layer.pixels) {
           // Ensure we only process valid indices
-          const pixelArray = currentFrame.layerPixels[layerIndex]
+          const pixelArray = layer.pixels
           const maxIndex = Math.min(pixelArray.length, gridWidth * gridHeight)
           for (let i = 0; i < maxIndex; i++) {
             if (pixelArray[i]) {
@@ -173,7 +173,7 @@ export function AnimationPreview({ frames, layers, fps, onFpsChange, gridWidth, 
         }
       })
     }
-  }, [frames, layers, currentFrameIndex, gridWidth, gridHeight, previewCellSizeX, previewCellSizeY, previewSize])
+  }, [frames, currentFrameIndex, gridWidth, gridHeight, previewCellSizeX, previewCellSizeY, previewSize])
 
   useEffect(() => {
     if (frames.length === 0) return
@@ -227,7 +227,6 @@ export default function Frames({
   framesEnabled,
   onFramesToggle,
   frames,
-  layers,
   activeFrameIndex,
   onFrameSelect,
   onFrameAdd,
@@ -365,8 +364,7 @@ export default function Frames({
             title="Right-click for options"
           >
             <FramePreview 
-              layers={layers} 
-              layerPixels={frame.layerPixels} 
+              layers={frame.layers} 
               visible={true}
               isActive={activeFrameIndex === index}
               gridWidth={gridWidth}

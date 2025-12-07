@@ -2,12 +2,12 @@ import JSZip from 'jszip'
 import GIF from 'gif.js'
 
 // Composite layers into a single pixel array
-export const compositeLayers = (layers, layerPixels, gridWidth, gridHeight) => {
+export const compositeLayers = (layers, gridWidth, gridHeight) => {
   const compositePixels = Array(gridWidth * gridHeight).fill(null)
   
-  layers.forEach((layer, layerIndex) => {
-    if (layer.visible && layerPixels[layerIndex]) {
-      const pixelArray = layerPixels[layerIndex]
+  layers.forEach((layer) => {
+    if (layer.visible && layer.pixels) {
+      const pixelArray = layer.pixels
       const maxIndex = Math.min(pixelArray.length, gridWidth * gridHeight)
       for (let i = 0; i < maxIndex; i++) {
         if (pixelArray[i]) {
@@ -151,7 +151,7 @@ const pixelsToImageData = (pixels, width, height) => {
 }
 
 // Export as PNG (single frame or multiple frames horizontally)
-export const exportPNG = async (frames, layers, gridWidth, gridHeight, framesEnabled) => {
+export const exportPNG = async (frames, gridWidth, gridHeight, framesEnabled) => {
   if (!frames || frames.length === 0) {
     throw new Error('No frames to export')
   }
@@ -160,7 +160,7 @@ export const exportPNG = async (frames, layers, gridWidth, gridHeight, framesEna
   
   // Get all cropped frames
   let croppedFrames = framesToExport.map(frame => {
-    const compositePixels = compositeLayers(layers, frame.layerPixels, gridWidth, gridHeight)
+    const compositePixels = compositeLayers(frame.layers, gridWidth, gridHeight)
     return autoCropPixels(compositePixels, gridWidth, gridHeight)
   })
   
@@ -220,7 +220,7 @@ export const exportPNG = async (frames, layers, gridWidth, gridHeight, framesEna
 }
 
 // Export as GIF (animated)
-export const exportGIF = async (frames, layers, gridWidth, gridHeight, fps, framesEnabled) => {
+export const exportGIF = async (frames, gridWidth, gridHeight, fps, framesEnabled) => {
   if (!frames || frames.length === 0) {
     throw new Error('No frames to export')
   }
@@ -229,7 +229,7 @@ export const exportGIF = async (frames, layers, gridWidth, gridHeight, fps, fram
   
   // Get all cropped frames
   let croppedFrames = framesToExport.map(frame => {
-    const compositePixels = compositeLayers(layers, frame.layerPixels, gridWidth, gridHeight)
+    const compositePixels = compositeLayers(frame.layers, gridWidth, gridHeight)
     return autoCropPixels(compositePixels, gridWidth, gridHeight)
   })
   
@@ -421,7 +421,7 @@ const generateOldFormatCH = (pixels, width, height) => {
 }
 
 // Export as C/H files in ZIP
-export const exportCH = async (frames, layers, gridWidth, gridHeight, framesEnabled) => {
+export const exportCH = async (frames, gridWidth, gridHeight, framesEnabled) => {
   if (!frames || frames.length === 0) {
     throw new Error('No frames to export')
   }
@@ -434,7 +434,7 @@ export const exportCH = async (frames, layers, gridWidth, gridHeight, framesEnab
   if (useOldFormat) {
     // Old format: single frame, simple tile data
     const frame = framesToExport[0]
-    const compositePixels = compositeLayers(layers, frame.layerPixels, gridWidth, gridHeight)
+    const compositePixels = compositeLayers(frame.layers, gridWidth, gridHeight)
     const cropped = autoCropPixels(compositePixels, gridWidth, gridHeight)
     
     const { c, h } = generateOldFormatCH(cropped.pixels, cropped.width, cropped.height)
@@ -459,7 +459,7 @@ export const exportCH = async (frames, layers, gridWidth, gridHeight, framesEnab
   // New format: multi-frame with palette
   // Get all cropped frames
   let croppedFrames = framesToExport.map(frame => {
-    const compositePixels = compositeLayers(layers, frame.layerPixels, gridWidth, gridHeight)
+    const compositePixels = compositeLayers(frame.layers, gridWidth, gridHeight)
     return autoCropPixels(compositePixels, gridWidth, gridHeight)
   })
   
@@ -581,7 +581,6 @@ export const exportJSON = (projectState) => {
     nextLayerId: projectState.nextLayerId,
     framesEnabled: projectState.framesEnabled,
     nextFrameId: projectState.nextFrameId,
-    layers: projectState.layers,
     frames: projectState.frames,
     activeFrameIndex: projectState.activeFrameIndex,
     fps: projectState.fps,

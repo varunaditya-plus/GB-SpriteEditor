@@ -25,7 +25,6 @@ export default function Panels({
   framesEnabled,
   onFramesToggle,
   frames,
-  frameLayers,
   activeFrameIndex,
   onFrameSelect,
   onFrameAdd,
@@ -52,7 +51,6 @@ export default function Panels({
 
       <ColorPalette
         frames={frames}
-        frameLayers={frameLayers}
         framesEnabled={framesEnabled}
         currentColor={currentColor}
         onColorChange={onColorChange}
@@ -166,7 +164,6 @@ export default function Panels({
         {framesEnabled && frames.length > 0 && (
           <AnimationPreview
             frames={frames}
-            layers={frameLayers}
             fps={fps}
             onFpsChange={onFpsChange}
             gridWidth={gridWidth}
