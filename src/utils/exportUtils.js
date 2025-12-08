@@ -4,14 +4,32 @@ import GIF from 'gif.js'
 // Composite layers into a single pixel array
 export const compositeLayers = (layers, gridWidth, gridHeight) => {
   const compositePixels = Array(gridWidth * gridHeight).fill(null)
+  const expectedSize = gridWidth * gridHeight
+  
+  if (!layers || layers.length === 0) {
+    return compositePixels
+  }
   
   layers.forEach((layer) => {
-    if (layer.visible && layer.pixels) {
+    if (!layer) return
+    
+    if (layer.visible && layer.pixels && Array.isArray(layer.pixels)) {
       const pixelArray = layer.pixels
-      const maxIndex = Math.min(pixelArray.length, gridWidth * gridHeight)
-      for (let i = 0; i < maxIndex; i++) {
-        if (pixelArray[i]) {
-          compositePixels[i] = pixelArray[i]
+      // Normalize pixel array to expected size
+      const normalizedPixels = pixelArray.length === expectedSize 
+        ? pixelArray 
+        : (() => {
+            const normalized = Array(expectedSize).fill(null)
+            const copyLength = Math.min(pixelArray.length, expectedSize)
+            for (let i = 0; i < copyLength; i++) {
+              normalized[i] = pixelArray[i] || null
+            }
+            return normalized
+          })()
+      
+      for (let i = 0; i < expectedSize; i++) {
+        if (normalizedPixels[i]) {
+          compositePixels[i] = normalizedPixels[i]
         }
       }
     }
@@ -40,12 +58,12 @@ export const autoCropPixels = (pixels, gridWidth, gridHeight) => {
     }
   }
   
-  // If no pixels found, return original
+  // If no pixels found, return a 1x1 frame (instead of full grid to avoid blank PNGs)
   if (maxRow < minRow || maxCol < minCol) {
     return {
-      pixels,
-      width: gridWidth,
-      height: gridHeight,
+      pixels: [null],
+      width: 1,
+      height: 1,
       offsetX: 0,
       offsetY: 0
     }
@@ -77,9 +95,15 @@ export const autoCropPixels = (pixels, gridWidth, gridHeight) => {
 
 // Convert hex color to RGB
 const hexToRgb = (hex) => {
+  if (!hex || typeof hex !== 'string' || !hex.startsWith('#')) {
+    return { r: 0, g: 0, b: 0 }
+  }
   const r = parseInt(hex.slice(1, 3), 16)
   const g = parseInt(hex.slice(3, 5), 16)
   const b = parseInt(hex.slice(5, 7), 16)
+  if (isNaN(r) || isNaN(g) || isNaN(b)) {
+    return { r: 0, g: 0, b: 0 }
+  }
   return { r, g, b }
 }
 
@@ -147,6 +171,9 @@ const pixelsToImageData = (pixels, width, height) => {
     }
   }
   
+  // Put the ImageData onto the canvas
+  ctx.putImageData(imageData, 0, 0)
+  
   return { imageData, canvas }
 }
 
@@ -156,13 +183,40 @@ export const exportPNG = async (frames, gridWidth, gridHeight, framesEnabled) =>
     throw new Error('No frames to export')
   }
   
-  const framesToExport = framesEnabled ? frames : [frames[0]]
+  const framesToExport = framesEnabled ? frames.filter(f => f) : [frames[0]].filter(f => f)
+  
+  if (framesToExport.length === 0) {
+    throw new Error('No valid frames to export')
+  }
   
   // Get all cropped frames
-  let croppedFrames = framesToExport.map(frame => {
+  let croppedFrames = framesToExport.map((frame) => {
+    // Ensure frame has layers
+    if (!frame.layers || !Array.isArray(frame.layers) || frame.layers.length === 0) {
+      const emptyPixels = Array(gridWidth * gridHeight).fill(null)
+      return autoCropPixels(emptyPixels, gridWidth, gridHeight)
+    }
+    
     const compositePixels = compositeLayers(frame.layers, gridWidth, gridHeight)
     return autoCropPixels(compositePixels, gridWidth, gridHeight)
   })
+  
+  // Check if all frames are empty (no pixels)
+  const hasAnyPixels = croppedFrames.some(frame => 
+    frame.pixels.some(pixel => pixel !== null)
+  )
+  
+  // If no pixels in any frame, use original grid dimensions instead of 1x1
+  // This ensures the PNG has valid dimensions and is not a tiny blank file
+  if (!hasAnyPixels) {
+    croppedFrames = croppedFrames.map(() => ({
+      pixels: Array(gridWidth * gridHeight).fill(null),
+      width: gridWidth,
+      height: gridHeight,
+      offsetX: 0,
+      offsetY: 0
+    }))
+  }
   
   // Normalize all frames to the largest frame's dimensions
   croppedFrames = normalizeFramesToLargest(croppedFrames)
