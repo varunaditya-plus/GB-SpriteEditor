@@ -327,6 +327,18 @@ export default function Frames({
     }
   }, [frameContextMenu.frameIndex, canDelete, onFrameDelete])
 
+  const handleContextMenuMoveUp = useCallback(() => {
+    if (frameContextMenu.frameIndex !== null && frameContextMenu.frameIndex > 0) {
+      onFrameReorder(frameContextMenu.frameIndex, frameContextMenu.frameIndex - 1)
+    }
+  }, [frameContextMenu.frameIndex, onFrameReorder])
+
+  const handleContextMenuMoveDown = useCallback(() => {
+    if (frameContextMenu.frameIndex !== null && frameContextMenu.frameIndex < frames.length - 1) {
+      onFrameReorder(frameContextMenu.frameIndex, frameContextMenu.frameIndex + 1)
+    }
+  }, [frameContextMenu.frameIndex, frames.length, onFrameReorder])
+
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (frameContextMenu.isOpen) {
@@ -389,7 +401,10 @@ export default function Frames({
         onClose={handleContextMenuClose}
         items={[
           { label: 'Duplicate', onClick: handleContextMenuDuplicate },
-          { label: 'Delete', onClick: handleContextMenuDelete, disabled: !canDelete }
+          { label: 'Delete', onClick: handleContextMenuDelete, disabled: !canDelete },
+          { type: 'separator' },
+          { label: 'Move left', onClick: handleContextMenuMoveUp, disabled: frameContextMenu.frameIndex === null || frameContextMenu.frameIndex === 0 },
+          { label: 'Move right', onClick: handleContextMenuMoveDown, disabled: frameContextMenu.frameIndex === null || frameContextMenu.frameIndex === frames.length - 1 }
         ]}
       />
     </div>
